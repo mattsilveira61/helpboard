@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from app.core.config import get_settings
 from app.core.database import get_db
 from app.core.errors import AppError, UnauthorizedError
-from app.routers import auth, categories, comments, tickets, users
+from app.routers import auth, categories, comments, dashboard, tickets, users
 
 settings = get_settings()
 
@@ -26,6 +26,7 @@ app = FastAPI(
         {"name": "categorias", "description": "Categorias dos chamados (leitura para todos, alteração só admin)"},
         {"name": "chamados", "description": "Abertura, edição, atribuição, fluxo de status e arquivamento"},
         {"name": "comentários e histórico", "description": "Conversa e linha do tempo de cada chamado"},
+        {"name": "dashboard", "description": "Indicadores de gestão (admin vê tudo, técnico vê os seus números)"},
         {"name": "infra", "description": "Verificação de saúde da API"},
     ],
 )
@@ -50,6 +51,7 @@ app.include_router(users.router)
 app.include_router(categories.router)
 app.include_router(tickets.router)
 app.include_router(comments.router)
+app.include_router(dashboard.router)
 
 
 @app.get("/health", tags=["infra"])

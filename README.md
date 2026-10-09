@@ -109,6 +109,24 @@ Fluxo de status: `ABERTO → EM_ANDAMENTO → RESOLVIDO → FECHADO`, com volta 
 solução recusada (`RESOLVIDO → EM_ANDAMENTO`) e reabertura (`FECHADO → ABERTO`). Detalhes em
 [docs/Planejamento.md](docs/Planejamento.md). Toda alteração grava o histórico na mesma transação.
 
+## Dashboard
+
+`GET /dashboard` (admin e técnico) devolve todos os indicadores numa resposta só. Cada número é calculado
+pelo PostgreSQL com `GROUP BY`, `COUNT(*) FILTER (...)`, `LEFT JOIN` e `AVG`, sem carregar os chamados na memória.
+O admin vê todos os chamados (`"scope": "TODOS"`); o técnico, só os atribuídos a ele (`"scope": "MEUS"`).
+Chamados arquivados não entram na conta.
+
+| Bloco | Conteúdo |
+|---|---|
+| `backlog` | Fila de agora: abertos, em andamento, críticos, atrasados (SLA vencido) e sem responsável |
+| `created` | Abertos no período: total e divisão por status, prioridade e categoria |
+| `resolved` | Resolvidos no período e tempo médio de resolução em horas (da abertura até a solução) |
+| `timeline` | Abertos e resolvidos dia a dia, inclusive os dias sem movimento (pronto para um gráfico) |
+| `by_assignee` | Por técnico: abertos, em andamento, resolvidos no período e tempo médio |
+
+O período vem de `start` e `end` (`?start=2026-03-01&end=2026-03-31`). O padrão são os últimos 30 dias, e o
+máximo é 366 dias. Os dias seguem o fuso `TIMEZONE`.
+
 Respostas de erro: `401` sem login ou token inválido, `403` perfil sem permissão, `404` não encontrado,
 `409` regra de negócio violada (ex.: e-mail repetido, transição de status fora do fluxo), `422` dados inválidos.
 

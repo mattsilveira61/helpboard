@@ -5,14 +5,13 @@ ou a mudança e o histórico são salvos juntos, ou nada é salvo (Regra 8).
 """
 
 from dataclasses import dataclass
-from datetime import date, datetime, time, timedelta, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Literal
-from zoneinfo import ZoneInfo
 
 from sqlalchemy import Select, case, func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
-from app.core.config import get_settings
+from app.core.clock import start_of_day
 from app.core.errors import ConflictError, ForbiddenError, NotFoundError
 from app.models import Category, Comment, HistoryAction, Priority, Role, Ticket, TicketHistory, TicketStatus, User
 from app.schemas.ticket import StatusChange, TicketCreate, TicketFilters, TicketUpdate
@@ -85,11 +84,6 @@ def _visible_query(user: User, include_archived: bool = False) -> Select[tuple[T
     return query
 
 
-def _start_of_day(day: date) -> datetime:
-    """Meia-noite do dia no fuso da empresa, para o filtro por período bater com o calendário do usuário."""
-    return datetime.combine(day, time.min, tzinfo=ZoneInfo(get_settings().timezone))
-
-
 def _apply_filters(query: Select[tuple[Ticket]], filters: TicketFilters) -> Select[tuple[Ticket]]:
     if filters.status:
         query = query.where(Ticket.status.in_(filters.status))
@@ -104,9 +98,9 @@ def _apply_filters(query: Select[tuple[Ticket]], filters: TicketFilters) -> Sele
     if filters.requester_id is not None:
         query = query.where(Ticket.requester_id == filters.requester_id)
     if filters.created_from:
-        query = query.where(Ticket.created_at >= _start_of_day(filters.created_from))
+        query = query.where(Ticket.created_at >= start_of_day(filters.created_from))
     if filters.created_to:
-        query = query.where(Ticket.created_at < _start_of_day(filters.created_to + timedelta(days=1)))
+        query = query.where(Ticket.created_at < start_of_day(filters.created_to + timedelta(days=1)))
     if filters.q:
         # Os curingas do LIKE digitados pelo usuário são tratados como texto comum
         escaped = filters.q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
