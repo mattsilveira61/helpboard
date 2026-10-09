@@ -1,4 +1,4 @@
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
@@ -7,6 +7,8 @@ from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 from app.core.database import get_db
+from app.core.errors import AppError, UnauthorizedError
+from app.routers import auth, users
 
 settings = get_settings()
 
@@ -22,6 +24,17 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.exception_handler(AppError)
+def app_error_handler(request: Request, exc: AppError) -> JSONResponse:
+    """Converte os erros de regra de negócio dos services em respostas HTTP."""
+    headers = {"WWW-Authenticate": "Bearer"} if isinstance(exc, UnauthorizedError) else None
+    return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail}, headers=headers)
+
+
+app.include_router(auth.router)
+app.include_router(users.router)
 
 
 @app.get("/health", tags=["infra"])

@@ -4,12 +4,19 @@ from pathlib import Path
 import pytest
 from alembic import command
 from alembic.config import Config
+from fastapi.testclient import TestClient
 from sqlalchemy import Engine, create_engine
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
+from app.core.database import get_db
+from app.core.security import create_access_token, hash_password
+from app.main import app
+from app.models import Role, User
 
 BACKEND_DIR = Path(__file__).resolve().parents[1] / "backend"
+# Senha de todos os usuários criados pelos testes
+PASSWORD = "senha-forte-123"
 
 
 @pytest.fixture(scope="session")
@@ -41,3 +48,44 @@ def db(db_engine: Engine) -> Generator[Session, None, None]:
         finally:
             session.close()
             transaction.rollback()
+
+
+@pytest.fixture
+def client(db: Session) -> Generator[TestClient, None, None]:
+    """Cliente HTTP da API usando a mesma sessão do teste (os dados criados no teste aparecem na API)."""
+    app.dependency_overrides[get_db] = lambda: db
+    with TestClient(app) as test_client:
+        yield test_client
+    app.dependency_overrides.clear()
+
+
+def create_user(db: Session, role: Role, email: str | None = None, *, is_active: bool = True) -> User:
+    user = User(
+        name=f"Usuário {role.value.title()}",
+        email=email or f"{role.value.lower()}@teste.dev",
+        password_hash=hash_password(PASSWORD),
+        role=role,
+        is_active=is_active,
+    )
+    db.add(user)
+    db.flush()
+    return user
+
+
+def auth_header(user: User) -> dict[str, str]:
+    return {"Authorization": f"Bearer {create_access_token(user.id)}"}
+
+
+@pytest.fixture
+def admin(db: Session) -> User:
+    return create_user(db, Role.ADMIN)
+
+
+@pytest.fixture
+def tecnico(db: Session) -> User:
+    return create_user(db, Role.TECNICO)
+
+
+@pytest.fixture
+def solicitante(db: Session) -> User:
+    return create_user(db, Role.SOLICITANTE)

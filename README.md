@@ -48,6 +48,25 @@ Criados pelo seed, todos com a senha definida em `DEMO_PASSWORD` (padrão do `.e
 O seed também cria 7 categorias e 20 chamados de exemplo em todos os status, com comentários e histórico.
 Ele pode ser executado mais de uma vez sem duplicar dados.
 
+## Autenticação
+
+1. `POST /auth/login` com `{"email": "...", "password": "..."}` devolve um `access_token` (JWT).
+2. Envie o token nas demais rotas no header `Authorization: Bearer <token>`.
+   No Swagger, use o botão **Authorize** e cole o token.
+
+| Endpoint | Quem acessa | Descrição |
+|---|---|---|
+| `POST /auth/login` | todos | Login, retorna o token e os dados do usuário |
+| `GET /auth/me` | autenticado | Dados do usuário logado |
+| `GET /users` | admin | Lista usuários (filtros `role` e `active`) |
+| `POST /users` | admin | Cria usuário |
+| `GET /users/{id}` | admin | Detalha usuário |
+| `PATCH /users/{id}` | admin | Altera os campos enviados (inclusive reativar) |
+| `DELETE /users/{id}` | admin | Desativa o usuário (não há exclusão física) |
+
+Respostas de erro: `401` sem login ou token inválido, `403` perfil sem permissão, `404` não encontrado,
+`409` regra de negócio violada (ex.: e-mail repetido, admin desativando a si mesmo), `422` dados inválidos.
+
 ## Testes
 
 ```bash
