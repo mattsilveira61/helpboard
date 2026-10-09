@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Entrar · HelpBoard</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="css/style.css">
+  <script type="module" src="js/pages/login.js"></script>
+</head>
+<body class="login-page">
+  <main class="login-card">
+    <header class="login-header">
+      <span class="brand-mark" aria-hidden="true">HB</span>
+      <h1>Entrar no HelpBoard</h1>
+      <p>Gestão de chamados e suporte</p>
+    </header>
+
+    <form id="login-form" class="login-form">
+      <div class="field">
+        <label for="email">E-mail</label>
+        <input class="input" id="email" name="email" type="email" autocomplete="username" required autofocus>
+      </div>
+      <div class="field">
+        <label for="password">Senha</label>
+        <input class="input" id="password" name="password" type="password" autocomplete="current-password" required>
+      </div>
+      <p id="login-alert" class="alert" role="alert" hidden></p>
+      <button class="button button-primary" type="submit">Entrar</button>
+    </form>
+
+    <section aria-labelledby="demo-title">
+      <p id="demo-title" class="divider">ou entre como demonstração</p>
+      <div id="demo-buttons" class="demo-buttons"></div>
+    </section>
+
+    <p class="login-footer">Cada perfil vê telas e chamados diferentes.</p>
+  </main>
+</body>
+</html>

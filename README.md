@@ -28,11 +28,18 @@ cd ..
 
 # 5. API
 uvicorn app.main:app --reload --app-dir backend
+
+# 6. Frontend (em outro terminal)
+python -m http.server 5500 --directory frontend
 ```
 
+- Aplicação: http://localhost:5500
 - API: http://localhost:8000
 - Documentação Swagger: http://localhost:8000/docs
 - Health check: http://localhost:8000/health
+
+O frontend é HTML, CSS e JavaScript puro (módulos ES), sem etapa de build. A porta 5500 precisa estar em
+`CORS_ORIGINS`, e o endereço da API fica em `frontend/js/config.js`.
 
 ### Usuários de demonstração
 
@@ -129,6 +136,25 @@ máximo é 366 dias. Os dias seguem o fuso `TIMEZONE`.
 
 Respostas de erro: `401` sem login ou token inválido, `403` perfil sem permissão, `404` não encontrado,
 `409` regra de negócio violada (ex.: e-mail repetido, transição de status fora do fluxo), `422` dados inválidos.
+
+## Frontend
+
+```
+frontend/
+├── *.html          uma página por tela (login, dashboard, quadro, chamados, usuários, categorias)
+├── css/style.css   tokens de cor, tema claro/escuro e layout responsivo
+└── js/
+    ├── api.js      fetch com token, mensagens de erro da API e sessão expirada
+    ├── session.js  token e usuário no sessionStorage, página inicial por perfil
+    ├── layout.js   menu lateral, guarda de páginas por perfil e topo
+    ├── dom.js      criação de elementos e ícones
+    └── pages/      o script de cada página
+```
+
+- Na tela de login há botões para entrar direto com cada usuário de demonstração.
+- O menu mostra só as telas do perfil: o solicitante vê Quadro e Chamados; o técnico, também o Dashboard; o admin, também Usuários e Categorias. Abrir uma página proibida pelo endereço leva de volta à página inicial. A proteção real fica na API, que responde `403`.
+- Se o token vencer, qualquer resposta `401` encerra a sessão e volta ao login com aviso.
+- Todo texto vindo da API entra na página como texto (`textContent`), nunca como HTML, o que evita XSS.
 
 ## Testes
 
