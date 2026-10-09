@@ -20,7 +20,13 @@ python -m venv backend/.venv
 backend/.venv/Scripts/activate  # Linux/Mac: source backend/.venv/bin/activate
 pip install -r backend/requirements-dev.txt
 
-# 4. API
+# 4. Tabelas e dados de demonstração
+cd backend
+alembic upgrade head
+python -m app.seed
+cd ..
+
+# 5. API
 uvicorn app.main:app --reload --app-dir backend
 ```
 
@@ -28,8 +34,25 @@ uvicorn app.main:app --reload --app-dir backend
 - Documentação Swagger: http://localhost:8000/docs
 - Health check: http://localhost:8000/health
 
+### Usuários de demonstração
+
+Criados pelo seed, todos com a senha definida em `DEMO_PASSWORD` (padrão do `.env.example`: `helpboard123`).
+
+| Perfil | E-mail |
+|---|---|
+| Admin | admin@helpboard.dev |
+| Técnico | maria@helpboard.dev |
+| Técnico | carlos@helpboard.dev |
+| Solicitante | joao@helpboard.dev |
+
+O seed também cria 7 categorias e 20 chamados de exemplo em todos os status, com comentários e histórico.
+Ele pode ser executado mais de uma vez sem duplicar dados.
+
 ## Testes
 
 ```bash
 pytest
 ```
+
+Os testes usam o banco `helpboard_test` (variável `TEST_DATABASE_URL`), recriado pelas migrations a cada execução.
+Cada teste roda dentro de uma transação desfeita no final, então o banco de desenvolvimento nunca é alterado.

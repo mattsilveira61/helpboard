@@ -11,7 +11,10 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=ROOT_DIR / ".env", extra="ignore")
 
     database_url: str
+    test_database_url: str | None = None
     secret_key: str
+    # Senha dos usuários de demonstração criados pelo seed
+    demo_password: str | None = None
     access_token_expire_minutes: int = 60
     cors_origins: str = ""
 
