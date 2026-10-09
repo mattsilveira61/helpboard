@@ -79,6 +79,11 @@ Cada perfil só enxerga parte dos chamados: o admin vê todos, o técnico vê os
 | `POST /tickets/{id}/assume` | técnico | Assume um chamado `ABERTO` sem responsável |
 | `POST /tickets/{id}/status` | conforme a transição | Muda o status. `RESOLVIDO` exige `solution`; recusar a solução e reabrir exigem `reason` |
 | `DELETE /tickets/{id}` | admin | Arquiva o chamado (não há exclusão física) |
+| `GET /tickets/{id}/comments` | quem vê o chamado | Comentários em ordem cronológica |
+| `POST /tickets/{id}/comments` | quem vê o chamado | Comenta em nome do usuário logado (não em chamado fechado ou arquivado) |
+| `GET /tickets/{id}/history` | quem vê o chamado | Linha do tempo das alterações: quem fez, o quê, valor antigo e novo |
+
+Comentários não podem ser editados nem apagados, para servir de registro de auditoria.
 
 Fluxo de status: `ABERTO → EM_ANDAMENTO → RESOLVIDO → FECHADO`, com volta à fila (`EM_ANDAMENTO → ABERTO`),
 solução recusada (`RESOLVIDO → EM_ANDAMENTO`) e reabertura (`FECHADO → ABERTO`). Detalhes em

@@ -5,14 +5,14 @@ import pytest
 from alembic import command
 from alembic.config import Config
 from fastapi.testclient import TestClient
-from sqlalchemy import Engine, create_engine
+from sqlalchemy import Engine, create_engine, select
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 from app.core.database import get_db
 from app.core.security import create_access_token, hash_password
 from app.main import app
-from app.models import Role, User
+from app.models import Category, Role, TicketHistory, User
 
 BACKEND_DIR = Path(__file__).resolve().parents[1] / "backend"
 # Senha de todos os usuários criados pelos testes
@@ -89,3 +89,53 @@ def tecnico(db: Session) -> User:
 @pytest.fixture
 def solicitante(db: Session) -> User:
     return create_user(db, Role.SOLICITANTE)
+
+
+# --- Chamados ---
+
+
+def open_ticket(client: TestClient, user: User, category: Category, **data) -> dict:
+    payload = {"title": "Impressora quebrada", "description": "Não imprime.", "category_id": category.id,
+               "priority": "MEDIA"} | data
+    response = client.post("/tickets", headers=auth_header(user), json=payload)
+    assert response.status_code == 201, response.text
+    return response.json()
+
+
+def change_status(client: TestClient, user: User, ticket_id: int, status: str, **extra):
+    return client.post(f"/tickets/{ticket_id}/status", headers=auth_header(user), json={"status": status} | extra)
+
+
+def assume(client: TestClient, user: User, ticket_id: int):
+    return client.post(f"/tickets/{ticket_id}/assume", headers=auth_header(user))
+
+
+def history_actions(db: Session, ticket_id: int) -> list[str]:
+    query = select(TicketHistory.action).where(TicketHistory.ticket_id == ticket_id).order_by(TicketHistory.id)
+    return list(db.scalars(query))
+
+
+@pytest.fixture
+def category(db: Session) -> Category:
+    category = Category(name="Hardware")
+    db.add(category)
+    db.flush()
+    return category
+
+
+@pytest.fixture
+def em_andamento(client: TestClient, solicitante: User, tecnico: User, category: Category) -> dict:
+    """Chamado do solicitante, assumido pelo técnico e em atendimento."""
+    ticket = open_ticket(client, solicitante, category)
+    assume(client, tecnico, ticket["id"])
+    return change_status(client, tecnico, ticket["id"], "EM_ANDAMENTO").json()
+
+
+@pytest.fixture
+def resolvido(client: TestClient, tecnico: User, em_andamento: dict) -> dict:
+    return change_status(client, tecnico, em_andamento["id"], "RESOLVIDO", solution="Toner trocado.").json()
+
+
+@pytest.fixture
+def fechado(client: TestClient, solicitante: User, resolvido: dict) -> dict:
+    return change_status(client, solicitante, resolvido["id"], "FECHADO").json()
