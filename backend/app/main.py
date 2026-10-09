@@ -8,14 +8,26 @@ from sqlalchemy.orm import Session
 from app.core.config import get_settings
 from app.core.database import get_db
 from app.core.errors import AppError, UnauthorizedError
-from app.routers import auth, comments, tickets, users
+from app.routers import auth, categories, comments, tickets, users
 
 settings = get_settings()
 
 app = FastAPI(
     title="HelpBoard API",
-    description="Sistema de gestão de chamados e suporte com quadro Kanban.",
+    description=(
+        "Sistema de gestão de chamados e suporte com quadro Kanban.\n\n"
+        "Faça login em `POST /auth/login`, clique em **Authorize** e cole o `access_token`. "
+        "Usuários de demonstração: `admin@`, `maria@`, `carlos@` e `joao@helpboard.dev`."
+    ),
     version="0.1.0",
+    openapi_tags=[
+        {"name": "autenticação", "description": "Login e dados do usuário logado"},
+        {"name": "usuários", "description": "Gerenciamento de usuários (só admin)"},
+        {"name": "categorias", "description": "Categorias dos chamados (leitura para todos, alteração só admin)"},
+        {"name": "chamados", "description": "Abertura, edição, atribuição, fluxo de status e arquivamento"},
+        {"name": "comentários e histórico", "description": "Conversa e linha do tempo de cada chamado"},
+        {"name": "infra", "description": "Verificação de saúde da API"},
+    ],
 )
 
 app.add_middleware(
@@ -35,6 +47,7 @@ def app_error_handler(request: Request, exc: AppError) -> JSONResponse:
 
 app.include_router(auth.router)
 app.include_router(users.router)
+app.include_router(categories.router)
 app.include_router(tickets.router)
 app.include_router(comments.router)
 

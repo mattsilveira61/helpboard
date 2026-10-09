@@ -2,11 +2,17 @@ from fastapi import APIRouter, Depends, status
 
 from app.core.deps import CurrentUser, DbSession, require_roles
 from app.models import Role
+from app.schemas.common import error_responses
 from app.schemas.user import UserCreate, UserOut, UserUpdate
 from app.services import users as user_service
 
 # Gerenciar usuários é exclusivo do admin (matriz de permissões): a checagem vale para todas as rotas
-router = APIRouter(prefix="/users", tags=["usuários"], dependencies=[Depends(require_roles(Role.ADMIN))])
+router = APIRouter(
+    prefix="/users",
+    tags=["usuários"],
+    dependencies=[Depends(require_roles(Role.ADMIN))],
+    responses=error_responses(401, 403),
+)
 
 
 @router.get("", response_model=list[UserOut])
@@ -15,23 +21,23 @@ def list_users(db: DbSession, active: bool | None = None, role: Role | None = No
     return user_service.list_users(db, active=active, role=role)
 
 
-@router.post("", response_model=UserOut, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=UserOut, status_code=status.HTTP_201_CREATED, responses=error_responses(409))
 def create_user(data: UserCreate, db: DbSession):
     return user_service.create_user(db, data)
 
 
-@router.get("/{user_id}", response_model=UserOut)
+@router.get("/{user_id}", response_model=UserOut, responses=error_responses(404))
 def get_user(user_id: int, db: DbSession):
     return user_service.get_user(db, user_id)
 
 
-@router.patch("/{user_id}", response_model=UserOut)
+@router.patch("/{user_id}", response_model=UserOut, responses=error_responses(404, 409))
 def update_user(user_id: int, data: UserUpdate, db: DbSession, actor: CurrentUser):
     """Altera só os campos enviados. `is_active: true` reativa um usuário desativado."""
     return user_service.update_user(db, user_service.get_user(db, user_id), data, actor)
 
 
-@router.delete("/{user_id}", response_model=UserOut)
+@router.delete("/{user_id}", response_model=UserOut, responses=error_responses(404, 409))
 def deactivate_user(user_id: int, db: DbSession, actor: CurrentUser):
     """Desativa o usuário. Não existe exclusão física: os chamados dele continuam no sistema."""
     return user_service.deactivate_user(db, user_service.get_user(db, user_id), actor)

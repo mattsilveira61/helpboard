@@ -63,6 +63,11 @@ Ele pode ser executado mais de uma vez sem duplicar dados.
 | `GET /users/{id}` | admin | Detalha usuário |
 | `PATCH /users/{id}` | admin | Altera os campos enviados (inclusive reativar) |
 | `DELETE /users/{id}` | admin | Desativa o usuário (não há exclusão física) |
+| `GET /categories` | autenticado | Categorias ativas em ordem alfabética (`include_inactive=true` só para admin) |
+| `GET /categories/{id}` | autenticado | Detalha a categoria |
+| `POST /categories` | admin | Cria categoria (nome único, sem diferenciar maiúsculas) |
+| `PATCH /categories/{id}` | admin | Altera os campos enviados (inclusive reativar) |
+| `DELETE /categories/{id}` | admin | Desativa a categoria: some do formulário, mas continua nos chamados antigos |
 
 ## Chamados
 
@@ -71,7 +76,7 @@ Cada perfil só enxerga parte dos chamados: o admin vê todos, o técnico vê os
 
 | Endpoint | Quem acessa | Descrição |
 |---|---|---|
-| `GET /tickets` | autenticado | Lista os chamados visíveis, críticos primeiro (`include_archived=true` só para admin) |
+| `GET /tickets` | autenticado | Lista paginada dos chamados visíveis, críticos primeiro, com filtros (abaixo) |
 | `POST /tickets` | autenticado | Abre chamado em nome do usuário logado (status `ABERTO`, prazo pela prioridade) |
 | `GET /tickets/{id}` | autenticado | Detalha o chamado, com `is_overdue` indicando atraso no prazo |
 | `PATCH /tickets/{id}` | conforme o campo | Edita título, descrição, categoria e prioridade (matriz de permissões) |
@@ -84,6 +89,21 @@ Cada perfil só enxerga parte dos chamados: o admin vê todos, o técnico vê os
 | `GET /tickets/{id}/history` | quem vê o chamado | Linha do tempo das alterações: quem fez, o quê, valor antigo e novo |
 
 Comentários não podem ser editados nem apagados, para servir de registro de auditoria.
+
+### Filtros e paginação de `GET /tickets`
+
+| Parâmetro | Exemplo | Observação |
+|---|---|---|
+| `status`, `priority` | `?status=ABERTO&status=EM_ANDAMENTO` | Repita o parâmetro para escolher vários |
+| `category_id`, `assigned_to_id`, `requester_id` | `?category_id=3` | |
+| `unassigned` | `?unassigned=true` | Só os sem responsável |
+| `created_from`, `created_to` | `?created_from=2026-10-01&created_to=2026-10-31` | Dias inclusivos, no fuso `TIMEZONE` (padrão `America/Sao_Paulo`) |
+| `q` | `?q=impressora` ou `?q=#42` | Palavra no título ou na descrição; um número busca também pelo ID |
+| `include_archived` | `?include_archived=true` | Só tem efeito para o admin |
+| `page`, `page_size` | `?page=2&page_size=20` | `page_size` de 1 a 100 (padrão 20) |
+
+Os filtros se combinam e nunca furam a visibilidade do perfil. A resposta tem o formato
+`{"items": [...], "total": 57, "page": 2, "page_size": 20, "pages": 3}`.
 
 Fluxo de status: `ABERTO → EM_ANDAMENTO → RESOLVIDO → FECHADO`, com volta à fila (`EM_ANDAMENTO → ABERTO`),
 solução recusada (`RESOLVIDO → EM_ANDAMENTO`) e reabertura (`FECHADO → ABERTO`). Detalhes em

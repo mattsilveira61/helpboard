@@ -17,6 +17,8 @@ class Settings(BaseSettings):
     demo_password: str | None = None
     access_token_expire_minutes: int = 60
     cors_origins: str = ""
+    # Fuso usado para interpretar os filtros por dia (o banco guarda tudo em UTC)
+    timezone: str = "America/Sao_Paulo"
 
     @property
     def cors_origins_list(self) -> list[str]:

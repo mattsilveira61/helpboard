@@ -67,7 +67,7 @@ def test_chamados_exigem_login(client: TestClient):
 
 
 def ids(response) -> set[int]:
-    return {t["id"] for t in response.json()}
+    return {t["id"] for t in response.json()["items"]}
 
 
 def test_solicitante_ve_so_os_proprios(client: TestClient, db: Session, solicitante: User, category: Category):
@@ -92,7 +92,7 @@ def test_tecnico_ve_os_seus_e_os_disponiveis(
 
     assert ids(client.get("/tickets", headers=auth_header(tecnico))) == {disponivel["id"], meu["id"]}
     assert client.get(f"/tickets/{do_outro['id']}", headers=auth_header(tecnico)).status_code == 404
-    assert len(client.get("/tickets", headers=auth_header(admin)).json()) == 3
+    assert client.get("/tickets", headers=auth_header(admin)).json()["total"] == 3
 
 
 def test_arquivados_ficam_ocultos_e_so_admin_ve_com_filtro(
@@ -116,7 +116,7 @@ def test_lista_criticos_primeiro_e_depois_os_mais_antigos(
 
     response = client.get("/tickets", headers=auth_header(solicitante))
 
-    assert [t["id"] for t in response.json()] == [critica_1["id"], critica_2["id"], alta["id"], baixa["id"]]
+    assert [t["id"] for t in response.json()["items"]] == [critica_1["id"], critica_2["id"], alta["id"], baixa["id"]]
 
 
 # --- Edição (matriz da seção 5) ---

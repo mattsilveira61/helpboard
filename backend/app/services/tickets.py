@@ -5,15 +5,17 @@ ou a mudança e o histórico são salvos juntos, ou nada é salvo (Regra 8).
 """
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import date, datetime, time, timedelta, timezone
 from typing import Literal
+from zoneinfo import ZoneInfo
 
-from sqlalchemy import Select, case, or_, select
+from sqlalchemy import Select, case, func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
+from app.core.config import get_settings
 from app.core.errors import ConflictError, ForbiddenError, NotFoundError
 from app.models import Category, Comment, HistoryAction, Priority, Role, Ticket, TicketHistory, TicketStatus, User
-from app.schemas.ticket import StatusChange, TicketCreate, TicketUpdate
+from app.schemas.ticket import StatusChange, TicketCreate, TicketFilters, TicketUpdate
 from app.services.sla import calculate_sla_deadline
 
 A, E, R, F = TicketStatus.ABERTO, TicketStatus.EM_ANDAMENTO, TicketStatus.RESOLVIDO, TicketStatus.FECHADO
@@ -83,9 +85,48 @@ def _visible_query(user: User, include_archived: bool = False) -> Select[tuple[T
     return query
 
 
-def list_tickets(db: Session, user: User, *, include_archived: bool = False) -> list[Ticket]:
-    query = _visible_query(user, include_archived).order_by(PRIORITY_ORDER, Ticket.created_at, Ticket.id)
-    return list(db.scalars(query))
+def _start_of_day(day: date) -> datetime:
+    """Meia-noite do dia no fuso da empresa, para o filtro por período bater com o calendário do usuário."""
+    return datetime.combine(day, time.min, tzinfo=ZoneInfo(get_settings().timezone))
+
+
+def _apply_filters(query: Select[tuple[Ticket]], filters: TicketFilters) -> Select[tuple[Ticket]]:
+    if filters.status:
+        query = query.where(Ticket.status.in_(filters.status))
+    if filters.priority:
+        query = query.where(Ticket.priority.in_(filters.priority))
+    if filters.category_id is not None:
+        query = query.where(Ticket.category_id == filters.category_id)
+    if filters.unassigned:
+        query = query.where(Ticket.assigned_to_id.is_(None))
+    elif filters.assigned_to_id is not None:
+        query = query.where(Ticket.assigned_to_id == filters.assigned_to_id)
+    if filters.requester_id is not None:
+        query = query.where(Ticket.requester_id == filters.requester_id)
+    if filters.created_from:
+        query = query.where(Ticket.created_at >= _start_of_day(filters.created_from))
+    if filters.created_to:
+        query = query.where(Ticket.created_at < _start_of_day(filters.created_to + timedelta(days=1)))
+    if filters.q:
+        # Os curingas do LIKE digitados pelo usuário são tratados como texto comum
+        escaped = filters.q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        pattern = f"%{escaped}%"
+        conditions = [Ticket.title.ilike(pattern, escape="\\"), Ticket.description.ilike(pattern, escape="\\")]
+        ticket_id = filters.q.removeprefix("#")
+        if ticket_id.isdigit() and int(ticket_id) < 2**31:
+            conditions.append(Ticket.id == int(ticket_id))
+        query = query.where(or_(*conditions))
+    return query
+
+
+def list_tickets(db: Session, user: User, filters: TicketFilters) -> tuple[list[Ticket], int]:
+    """Devolve a página pedida e o total de chamados que atendem aos filtros."""
+    query = _apply_filters(_visible_query(user, filters.include_archived), filters)
+
+    total = db.scalar(select(func.count()).select_from(query.order_by(None).subquery()))
+    page = query.order_by(PRIORITY_ORDER, Ticket.created_at, Ticket.id)
+    page = page.limit(filters.page_size).offset((filters.page - 1) * filters.page_size)
+    return list(db.scalars(page)), total
 
 
 def get_ticket(db: Session, ticket_id: int, user: User) -> Ticket:
