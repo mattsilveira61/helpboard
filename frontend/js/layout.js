@@ -1,7 +1,7 @@
 // Layout das páginas internas: guarda de acesso por perfil, menu lateral e barra superior.
 
 import { api } from "./api.js";
-import { el, icon } from "./dom.js";
+import { el, icon, initials, showFlash } from "./dom.js";
 import { ROLE_LABELS } from "./labels.js";
 import { getUser, goToLogin, halt, homeFor, isLoggedIn, logout, updateUser } from "./session.js";
 
@@ -26,15 +26,6 @@ function navLink(page, current) {
     icon(page.icon),
     el("span", {}, page.label),
   );
-}
-
-function initials(name) {
-  return name
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((part) => part[0])
-    .join("")
-    .toUpperCase();
 }
 
 function sidebar(user, current) {
@@ -95,8 +86,9 @@ function topbar(title, toggleMenu) {
 /**
  * Monta a página interna e devolve o usuário e o <main> onde a página desenha seu conteúdo.
  * Quem não está logado vai para o login; quem não tem acesso volta para a sua página inicial.
+ * Telas de apoio (detalhe, formulário) usam o id da tela do menu a que pertencem e um `title` próprio.
  */
-export async function initPage(pageId) {
+export async function initPage(pageId, { title } = {}) {
   if (!isLoggedIn()) {
     goToLogin();
     return halt();
@@ -108,7 +100,7 @@ export async function initPage(pageId) {
     return halt();
   }
 
-  document.title = `${page.label} · HelpBoard`;
+  document.title = `${title ?? page.label} · HelpBoard`;
   const main = el("main", { class: "content", id: "content" });
   const shell = el("div", { class: "shell" });
 
@@ -121,9 +113,10 @@ export async function initPage(pageId) {
   shell.append(
     sidebar(user, pageId),
     el("div", { class: "backdrop", onClick: closeMenu }),
-    el("div", { class: "main-area" }, topbar(page.label, toggleMenu), main),
+    el("div", { class: "main-area" }, topbar(title ?? page.label, toggleMenu), main),
   );
   document.body.replaceChildren(shell);
+  showFlash();
 
   // Confere o token em segundo plano: se venceu ou o usuário foi desativado, a API manda para o login.
   // Se o perfil mudou desde o login, a página é recarregada para refazer a guarda e o menu.

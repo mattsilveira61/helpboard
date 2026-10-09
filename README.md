@@ -147,9 +147,18 @@ frontend/
     ├── api.js      fetch com token, mensagens de erro da API e sessão expirada
     ├── session.js  token e usuário no sessionStorage, página inicial por perfil
     ├── layout.js   menu lateral, guarda de páginas por perfil e topo
-    ├── dom.js      criação de elementos e ícones
+    ├── dom.js      criação de elementos, ícones, estados vazios e avisos (toasts)
+    ├── dialog.js   diálogo modal para confirmar ações e pedir solução ou motivo
+    ├── format.js   datas no formato brasileiro e tempo relativo ("há 2 horas")
+    ├── tickets.js  selos de status, prioridade e prazo, e o que cada perfil pode fazer
     └── pages/      o script de cada página
 ```
+
+### Telas de chamados
+
+- **Lista** (`tickets.html`): busca por título, descrição ou número; filtros de status, prioridade, categoria, responsável e período; paginação. Os filtros ficam no endereço da página, então recarregar, voltar do detalhe ou compartilhar o link mostra a mesma lista. No celular, cada linha vira um cartão.
+- **Formulário** (`ticket-form.html`): abre um chamado novo ou edita um existente (`?id=N`). Os erros aparecem em cada campo antes de enviar, com as mesmas regras da API. Na edição, só os campos que o perfil pode alterar ficam habilitados e só o que mudou é enviado.
+- **Detalhe** (`ticket.html?id=N`): dados do chamado, prazo do SLA, comentários e histórico. Os botões mudam conforme o perfil e o status: assumir, iniciar atendimento, resolver (pede a solução), aceitar e fechar, recusar ou reabrir (pedem o motivo, que vira comentário), trocar responsável e arquivar.
 
 - Na tela de login há botões para entrar direto com cada usuário de demonstração.
 - O menu mostra só as telas do perfil: o solicitante vê Quadro e Chamados; o técnico, também o Dashboard; o admin, também Usuários e Categorias. Abrir uma página proibida pelo endereço leva de volta à página inicial. A proteção real fica na API, que responde `403`.

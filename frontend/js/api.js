@@ -15,7 +15,8 @@ function errorMessage(status, body) {
   const detail = body?.detail;
   if (typeof detail === "string") return detail;
   // 422: o FastAPI devolve uma lista com um item por campo inválido
-  if (Array.isArray(detail)) return detail.map((item) => item.msg).join(" ");
+  // (as validações próprias chegam como "Value error, <mensagem>")
+  if (Array.isArray(detail)) return detail.map((item) => item.msg.replace(/^Value error, /, "")).join(" ");
   return `Erro inesperado na API (${status}).`;
 }
 

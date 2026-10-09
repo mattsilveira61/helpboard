@@ -36,6 +36,22 @@ const ICONS = {
   tool: [
     "M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z",
   ],
+  plus: ["M12 5v14", "M5 12h14"],
+  search: ["M3 11a8 8 0 1 0 16 0a8 8 0 1 0-16 0", "M21 21l-4.35-4.35"],
+  back: ["M19 12H5", "M12 19l-7-7 7-7"],
+  prev: ["M15 18l-6-6 6-6"],
+  next: ["M9 18l6-6-6-6"],
+  edit: ["M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"],
+  archive: ["M21 8v13H3V8", "M1 3h22v5H1z", "M10 12h4"],
+  assign: ["M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2", "M4.5 7a4 4 0 1 0 8 0a4 4 0 1 0-8 0", "M17 11l2 2 4-4"],
+  clock: ["M2 12a10 10 0 1 0 20 0a10 10 0 1 0-20 0", "M12 6v6l4 2"],
+  message: ["M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"],
+  inbox: [
+    "M22 12h-6l-2 3h-4l-2-3H2",
+    "M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z",
+  ],
+  alert: ["M2 12a10 10 0 1 0 20 0a10 10 0 1 0-20 0", "M12 8v4", "M12 16h.01"],
+  close: ["M18 6L6 18", "M6 6l12 12"],
 };
 
 export function icon(name) {
@@ -51,15 +67,53 @@ export function icon(name) {
   return svg;
 }
 
-/** Bloco de aviso para telas vazias ou ainda em construção. */
-export function emptyState(title, text, iconName = "tool") {
+/** Bloco de aviso para telas vazias, em construção ou com erro. `action` é um botão ou link opcional. */
+export function emptyState(title, text, iconName = "tool", action = null) {
   return el(
     "section",
     { class: "empty-state" },
     el("div", { class: "empty-state-icon" }, icon(iconName)),
     el("h2", {}, title),
     el("p", {}, text),
+    action,
   );
+}
+
+/** Iniciais para o avatar: "Maria Técnica" → "MT". */
+export function initials(name) {
+  return name
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase();
+}
+
+/** Aviso rápido no canto da tela, lido também por leitores de tela. `kind`: "success" ou "error". */
+export function toast(text, kind = "success") {
+  let region = document.querySelector(".toast-region");
+  if (!region) {
+    region = el("div", { class: "toast-region", role: "status", "aria-live": "polite" });
+    document.body.append(region);
+  }
+  const item = el("p", { class: `toast toast-${kind}` }, text);
+  region.append(item);
+  setTimeout(() => item.remove(), kind === "error" ? 6000 : 4000);
+}
+
+// Aviso que sobrevive a uma troca de página (ex.: "Chamado aberto" depois de salvar o formulário)
+const FLASH_KEY = "helpboard.flash";
+
+export function setFlash(text) {
+  sessionStorage.setItem(FLASH_KEY, text);
+}
+
+export function showFlash() {
+  const text = sessionStorage.getItem(FLASH_KEY);
+  if (text) {
+    sessionStorage.removeItem(FLASH_KEY);
+    toast(text);
+  }
 }
 
 /** Mostra (ou esconde, com texto vazio) uma mensagem num elemento de alerta. */
