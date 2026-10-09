@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from app.core.config import get_settings
 from app.core.database import get_db
 from app.core.errors import AppError, UnauthorizedError
-from app.routers import auth, users
+from app.routers import auth, tickets, users
 
 settings = get_settings()
 
@@ -35,6 +35,7 @@ def app_error_handler(request: Request, exc: AppError) -> JSONResponse:
 
 app.include_router(auth.router)
 app.include_router(users.router)
+app.include_router(tickets.router)
 
 
 @app.get("/health", tags=["infra"])

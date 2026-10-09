@@ -40,7 +40,7 @@ Centralizar as solicitações de suporte de uma pequena empresa num quadro Kanba
 | Perfil | Quais chamados vê |
 |---|---|
 | **Admin** | Todos |
-| **Técnico** | Os atribuídos a ele + os sem responsável (disponíveis) |
+| **Técnico** | Os atribuídos a ele + os sem responsável (disponíveis) + os que ele mesmo abriu |
 | **Solicitante** | Somente os que ele abriu |
 
 Chamados **arquivados** ficam ocultos por padrão. Só o admin vê, ativando um filtro.

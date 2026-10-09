@@ -64,8 +64,28 @@ Ele pode ser executado mais de uma vez sem duplicar dados.
 | `PATCH /users/{id}` | admin | Altera os campos enviados (inclusive reativar) |
 | `DELETE /users/{id}` | admin | Desativa o usuário (não há exclusão física) |
 
+## Chamados
+
+Cada perfil só enxerga parte dos chamados: o admin vê todos, o técnico vê os atribuídos a ele e os disponíveis
+(sem responsável), e o solicitante vê só os que abriu. Chamado fora do alcance responde `404`.
+
+| Endpoint | Quem acessa | Descrição |
+|---|---|---|
+| `GET /tickets` | autenticado | Lista os chamados visíveis, críticos primeiro (`include_archived=true` só para admin) |
+| `POST /tickets` | autenticado | Abre chamado em nome do usuário logado (status `ABERTO`, prazo pela prioridade) |
+| `GET /tickets/{id}` | autenticado | Detalha o chamado, com `is_overdue` indicando atraso no prazo |
+| `PATCH /tickets/{id}` | conforme o campo | Edita título, descrição, categoria e prioridade (matriz de permissões) |
+| `PUT /tickets/{id}/assignee` | admin | Atribui, reatribui ou remove (`null`) o responsável |
+| `POST /tickets/{id}/assume` | técnico | Assume um chamado `ABERTO` sem responsável |
+| `POST /tickets/{id}/status` | conforme a transição | Muda o status. `RESOLVIDO` exige `solution`; recusar a solução e reabrir exigem `reason` |
+| `DELETE /tickets/{id}` | admin | Arquiva o chamado (não há exclusão física) |
+
+Fluxo de status: `ABERTO → EM_ANDAMENTO → RESOLVIDO → FECHADO`, com volta à fila (`EM_ANDAMENTO → ABERTO`),
+solução recusada (`RESOLVIDO → EM_ANDAMENTO`) e reabertura (`FECHADO → ABERTO`). Detalhes em
+[docs/Planejamento.md](docs/Planejamento.md). Toda alteração grava o histórico na mesma transação.
+
 Respostas de erro: `401` sem login ou token inválido, `403` perfil sem permissão, `404` não encontrado,
-`409` regra de negócio violada (ex.: e-mail repetido, admin desativando a si mesmo), `422` dados inválidos.
+`409` regra de negócio violada (ex.: e-mail repetido, transição de status fora do fluxo), `422` dados inválidos.
 
 ## Testes
 
