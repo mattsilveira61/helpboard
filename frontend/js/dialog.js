@@ -6,17 +6,30 @@ let counter = 0;
 
 function fieldControl(field, prefix) {
   const id = `${prefix}-${field.name}`;
-  const control =
-    field.type === "select"
-      ? el(
-          "select",
-          { class: "input", id, name: field.name },
-          field.options.map((option) =>
-            el("option", { value: option.value, selected: option.value === field.value }, option.label),
-          ),
-        )
-      : el("textarea", { class: "input", id, name: field.name, rows: 5, maxlength: field.maxlength }, field.value ?? "");
-  return el("div", { class: "field" }, el("label", { for: id }, field.label), control);
+  const hintId = field.hint ? `${id}-hint` : null;
+  const common = { class: "input", id, name: field.name, maxlength: field.maxlength, "aria-describedby": hintId };
+  let control;
+  if (field.type === "select") {
+    control = el(
+      "select",
+      common,
+      field.options.map((option) =>
+        el("option", { value: option.value, selected: option.value === field.value }, option.label),
+      ),
+    );
+  } else if (!field.type || field.type === "textarea") {
+    control = el("textarea", { ...common, rows: field.rows ?? 5 }, field.value ?? "");
+  } else {
+    // text, email ou password
+    control = el("input", { ...common, type: field.type, value: field.value ?? "", autocomplete: field.autocomplete ?? "off" });
+  }
+  return el(
+    "div",
+    { class: "field" },
+    el("label", { for: id }, field.label),
+    control,
+    field.hint && el("p", { class: "field-hint", id: hintId }, field.hint),
+  );
 }
 
 /**
@@ -24,7 +37,8 @@ function fieldControl(field, prefix) {
  * Ao confirmar, roda `onConfirm(valores)` com o diálogo aberto: se a API recusar, a mensagem aparece
  * dentro do diálogo e o texto digitado não se perde. Devolve o resultado de `onConfirm`, ou null se cancelar.
  *
- * fields: [{ name, label, type: "textarea" | "select", options: [{ value, label }], value, required }]
+ * fields: [{ name, label, type: "textarea" | "select" | "text" | "email" | "password", options: [{ value, label }],
+ *            value, required, hint, maxlength, rows, autocomplete }]
  */
 export function openDialog({ title, text, fields = [], confirmLabel = "Confirmar", danger = false, onConfirm }) {
   return new Promise((resolve) => {
