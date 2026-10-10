@@ -3,15 +3,23 @@
 // As regras abaixo espelham app/services/tickets.py só para decidir quais botões mostrar.
 // Quem garante as permissões é a API: se algo mudar no meio do caminho, ela recusa e a tela mostra o motivo.
 
+import { api } from "./api.js";
+import { openDialog } from "./dialog.js";
 import { el } from "./dom.js";
 import { formatRelative } from "./format.js";
 import { PRIORITY_LABELS, SLA_HOURS, STATUS_LABELS } from "./labels.js";
 
-// Última busca feita na lista: o "Voltar" do detalhe cai na mesma página e com os mesmos filtros
-export const LAST_LIST_KEY = "helpboard.lastList";
+// Última tela de chamados visitada (lista ou quadro, com os filtros): o "Voltar" do detalhe volta para ela
+const BACK_KEY = "helpboard.back";
 
-export function listUrl() {
-  return `tickets.html${sessionStorage.getItem(LAST_LIST_KEY) ?? ""}`;
+export function rememberBack(url) {
+  sessionStorage.setItem(BACK_KEY, url);
+}
+
+export function backLink() {
+  const href = sessionStorage.getItem(BACK_KEY) ?? "tickets.html";
+  const board = href.startsWith("board.html");
+  return { href, label: board ? "Voltar para o quadro" : "Voltar para a lista", pageId: board ? "board" : "tickets" };
 }
 
 export function statusBadge(status) {
@@ -74,6 +82,10 @@ const TRANSITIONS = [
   { from: "FECHADO", to: "ABERTO", actor: "SOLICITANTE", label: "Reabrir", needs: "reason" },
 ];
 
+export function findTransition(from, to) {
+  return TRANSITIONS.find((t) => t.from === from && t.to === to) ?? null;
+}
+
 /** Mudanças de status que o usuário pode fazer agora neste chamado. */
 export function statusActions(ticket, user) {
   if (ticket.is_archived) return [];
@@ -84,6 +96,59 @@ export function statusActions(ticket, user) {
     if (isAdmin(user)) return true;
     return t.actor === "RESPONSAVEL" ? isAssignee(ticket, user) : isRequester(ticket, user);
   });
+}
+
+/** Por que o chamado não pode ir para o status `to` (usado quando um cartão é solto na coluna errada). */
+export function moveBlocker(ticket, user, to) {
+  const transition = findTransition(ticket.status, to);
+  if (!transition) {
+    return `Um chamado ${STATUS_LABELS[ticket.status].toLowerCase()} não pode ir direto para ${STATUS_LABELS[to]}.`;
+  }
+  if (to === "EM_ANDAMENTO" && ticket.status === "ABERTO" && !ticket.assigned_to) {
+    return "Atribua um responsável antes de iniciar o atendimento.";
+  }
+  return transition.actor === "RESPONSAVEL"
+    ? "Só o técnico responsável pelo chamado pode fazer esta mudança."
+    : "Só quem abriu o chamado pode fazer esta mudança.";
+}
+
+/**
+ * Pede a mudança de status à API. Quando ela exige solução ou motivo, abre o diálogo antes
+ * (e os erros da API aparecem dentro dele). Devolve true se o status mudou e false se a pessoa cancelou.
+ */
+export async function requestStatusChange(ticket, transition) {
+  const body = { status: transition.to };
+  const send = () => api.post(`/tickets/${ticket.id}/status`, body);
+  if (!transition.needs) {
+    await send();
+    return true;
+  }
+
+  const isSolution = transition.needs === "solution";
+  const saved = await openDialog({
+    title: transition.label,
+    text: isSolution
+      ? "Descreva o que foi feito. O solicitante vai ler a solução para aceitar ou recusar."
+      : transition.to === "ABERTO"
+        ? "Conte por que o chamado precisa ser reaberto. O motivo vira um comentário."
+        : "Conte o que ainda não está resolvido. O motivo vira um comentário e o chamado volta para o técnico.",
+    fields: [
+      {
+        name: "text",
+        label: isSolution ? "Solução" : "Motivo",
+        type: "textarea",
+        value: isSolution ? (ticket.solution ?? "") : "",
+        required: !(isSolution && ticket.solution),
+      },
+    ],
+    confirmLabel: transition.label,
+    onConfirm: async ({ text }) => {
+      if (text.trim()) body[transition.needs] = text.trim();
+      await send();
+      return true;
+    },
+  });
+  return Boolean(saved);
 }
 
 export function canAssume(ticket, user) {

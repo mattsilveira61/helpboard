@@ -3,10 +3,20 @@
 
 import { api } from "../api.js";
 import { el, emptyState, icon } from "../dom.js";
+import {
+  assigneeOptions,
+  assigneeQuery,
+  categoryOptions,
+  chipGroup,
+  loadFilterOptions,
+  readAssignee,
+  searchField,
+  selectField,
+} from "../filters.js";
 import { formatDate, formatDateTime } from "../format.js";
 import { PRIORITY_LABELS, STATUS_LABELS } from "../labels.js";
 import { initPage } from "../layout.js";
-import { LAST_LIST_KEY, priorityBadge, slaBadge, statusBadge } from "../tickets.js";
+import { priorityBadge, rememberBack, slaBadge, statusBadge } from "../tickets.js";
 
 const PAGE_SIZES = [10, 20, 50];
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -19,14 +29,12 @@ const isAdmin = user.role === "ADMIN";
 function readFilters() {
   const params = new URLSearchParams(location.search);
   const pageSize = Number(params.get("page_size"));
-  const assignee = params.get("assignee") ?? "";
   return {
     q: params.get("q") ?? "",
     status: params.getAll("status").filter((s) => s in STATUS_LABELS),
     priority: params.getAll("priority").filter((p) => p in PRIORITY_LABELS),
     category_id: /^\d+$/.test(params.get("category_id")) ? params.get("category_id") : "",
-    // "me" = atribuídos a mim, "none" = sem responsável, número = um responsável específico
-    assignee: /^(me|none|\d+)$/.test(assignee) && user.role !== "SOLICITANTE" ? assignee : "",
+    assignee: readAssignee(params, user),
     created_from: DATE.test(params.get("created_from")) ? params.get("created_from") : "",
     created_to: DATE.test(params.get("created_to")) ? params.get("created_to") : "",
     include_archived: isAdmin && params.get("include_archived") === "true",
@@ -51,17 +59,14 @@ function writeUrl() {
   const search = params.toString() ? `?${params}` : "";
   history.replaceState(null, "", `tickets.html${search}`);
   // O detalhe usa isto no "Voltar" para cair na mesma página da lista
-  sessionStorage.setItem(LAST_LIST_KEY, search);
+  rememberBack(`tickets.html${search}`);
 }
 
 function apiQuery() {
   const { assignee, ...query } = filters;
   query.q = filters.q.trim();
-  if (assignee === "me") query.assigned_to_id = user.id;
-  else if (assignee === "none") query.unassigned = true;
-  else if (assignee) query.assigned_to_id = assignee;
   if (!query.include_archived) delete query.include_archived;
-  return query;
+  return { ...query, ...assigneeQuery(assignee, user) };
 }
 
 function hasFilters() {
@@ -72,44 +77,6 @@ function hasFilters() {
 }
 
 // --- Barra de filtros ---
-
-function select(id, label, options, value, onChange) {
-  return el(
-    "div",
-    { class: "field field-compact" },
-    el("label", { for: id }, label),
-    el(
-      "select",
-      { class: "input", id, onChange: (event) => onChange(event.target.value) },
-      options.map(([optionValue, text]) => el("option", { value: optionValue, selected: optionValue === value }, text)),
-    ),
-  );
-}
-
-function chips(label, key, labels) {
-  return el(
-    "div",
-    { class: "chip-group", role: "group", "aria-label": label },
-    el("span", { class: "chip-group-label" }, label),
-    Object.entries(labels).map(([value, text]) =>
-      el(
-        "button",
-        {
-          type: "button",
-          class: `chip chip-${key}-${value.toLowerCase()}`,
-          "aria-pressed": String(filters[key].includes(value)),
-          onClick: (event) => {
-            const pressed = !filters[key].includes(value);
-            filters[key] = pressed ? [...filters[key], value] : filters[key].filter((v) => v !== value);
-            event.currentTarget.setAttribute("aria-pressed", String(pressed));
-            changed();
-          },
-        },
-        text,
-      ),
-    ),
-  );
-}
 
 function dateInput(id, label, key) {
   return el(
@@ -129,36 +96,8 @@ function dateInput(id, label, key) {
   );
 }
 
-function assigneeOptions(people) {
-  if (user.role === "SOLICITANTE") return null;
-  const options = [["", "Todos"]];
-  if (user.role === "TECNICO") options.push(["me", "Atribuídos a mim"]);
-  options.push(["none", "Sem responsável"]);
-  for (const person of people) options.push([String(person.id), person.name]);
-  return options;
-}
-
 function filterBar(categories, people) {
-  let debounce;
-  const search = el("input", {
-    class: "input search-input",
-    type: "search",
-    id: "filter-q",
-    placeholder: "Buscar por título, descrição ou #número",
-    "aria-label": "Buscar chamados",
-    value: filters.q,
-    maxlength: 100,
-    onInput: (event) => {
-      clearTimeout(debounce);
-      debounce = setTimeout(() => {
-        filters.q = event.target.value;
-        changed();
-      }, 300);
-    },
-  });
-
-  const categoryOptions = [["", "Todas"], ...categories.map((c) => [String(c.id), c.is_active ? c.name : `${c.name} (inativa)`])];
-  const assignee = assigneeOptions(people);
+  const assignee = assigneeOptions(user, people);
 
   return el(
     "form",
@@ -166,19 +105,24 @@ function filterBar(categories, people) {
     el(
       "div",
       { class: "filters-top" },
-      el("div", { class: "search-field" }, icon("search"), search),
+      searchField(filters, changed),
       el("a", { class: "button button-primary", href: "ticket-form.html" }, icon("plus"), "Novo chamado"),
     ),
-    el("div", { class: "filters-chips" }, chips("Status", "status", STATUS_LABELS), chips("Prioridade", "priority", PRIORITY_LABELS)),
+    el(
+      "div",
+      { class: "filters-chips" },
+      chipGroup("Status", "status", STATUS_LABELS, filters, changed),
+      chipGroup("Prioridade", "priority", PRIORITY_LABELS, filters, changed),
+    ),
     el(
       "div",
       { class: "filters-row" },
-      select("filter-category", "Categoria", categoryOptions, filters.category_id, (value) => {
+      selectField("filter-category", "Categoria", categoryOptions(categories), filters.category_id, (value) => {
         filters.category_id = value;
         changed();
       }),
       assignee &&
-        select("filter-assignee", "Responsável", assignee, filters.assignee, (value) => {
+        selectField("filter-assignee", "Responsável", assignee, filters.assignee, (value) => {
           filters.assignee = value;
           changed();
         }),
@@ -285,7 +229,7 @@ function pagination(data) {
     el(
       "div",
       { class: "pagination-controls" },
-      select("page-size", "Por página", PAGE_SIZES.map((n) => [String(n), String(n)]), String(filters.page_size), (value) => {
+      selectField("page-size", "Por página", PAGE_SIZES.map((n) => [String(n), String(n)]), String(filters.page_size), (value) => {
         filters.page_size = Number(value);
         filters.page = 1;
         load();
@@ -382,11 +326,5 @@ function render() {
   load();
 }
 
-// Categorias e responsáveis para os filtros (a lista de usuários só existe para o admin)
-const [categories, people] = await Promise.all([
-  api.get("/categories", isAdmin ? { include_inactive: true } : {}).catch(() => []),
-  isAdmin
-    ? api.get("/users", { active: true }).then((users) => users.filter((u) => u.role !== "SOLICITANTE")).catch(() => [])
-    : [],
-]);
+const [categories, people] = await loadFilterOptions(user);
 render();

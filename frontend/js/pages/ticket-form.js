@@ -6,15 +6,16 @@ import { el, emptyState, icon, setAlert, setFlash } from "../dom.js";
 import { PRIORITY_LABELS, SLA_HOURS } from "../labels.js";
 import { initPage } from "../layout.js";
 import { halt } from "../session.js";
-import { editableFields, listUrl } from "../tickets.js";
+import { backLink, editableFields } from "../tickets.js";
 
 const id = new URLSearchParams(location.search).get("id");
 const editing = id !== null;
-const { user, main } = await initPage("tickets", { title: editing ? `Editar chamado #${id}` : "Novo chamado" });
+const back = backLink();
+const { user, main } = await initPage(back.pageId, { title: editing ? `Editar chamado #${id}` : "Novo chamado" });
 
 function fail(title, text) {
   main.replaceChildren(
-    emptyState(title, text, "alert", el("a", { class: "button button-secondary", href: listUrl() }, "Voltar para a lista")),
+    emptyState(title, text, "alert", el("a", { class: "button button-secondary", href: back.href }, back.label)),
   );
   return halt();
 }
@@ -101,7 +102,7 @@ const hints = {
 
 const alertBox = el("p", { class: "alert", role: "alert", hidden: true });
 const submit = el("button", { type: "submit", class: "button button-primary" }, editing ? "Salvar alterações" : "Abrir chamado");
-const cancelHref = editing ? `ticket.html?id=${id}` : listUrl();
+const cancelHref = editing ? `ticket.html?id=${id}` : back.href;
 
 const form = el(
   "form",
@@ -198,7 +199,7 @@ main.replaceChildren(
   el(
     "div",
     { class: "page-narrow" },
-    el("a", { class: "back-link", href: cancelHref }, icon("back"), editing ? `Voltar ao chamado #${id}` : "Voltar para a lista"),
+    el("a", { class: "back-link", href: cancelHref }, icon("back"), editing ? `Voltar ao chamado #${id}` : back.label),
     form,
   ),
 );

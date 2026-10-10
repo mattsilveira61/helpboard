@@ -8,24 +8,27 @@ import { PRIORITY_LABELS, STATUS_LABELS } from "../labels.js";
 import { initPage } from "../layout.js";
 import { halt } from "../session.js";
 import {
+  backLink,
   canArchive,
   canAssign,
   canAssume,
   commentBlocker,
   editableFields,
-  listUrl,
   priorityBadge,
+  requestStatusChange,
   slaBadge,
   statusActions,
   statusBadge,
 } from "../tickets.js";
 
 const id = new URLSearchParams(location.search).get("id");
-const { user, main } = await initPage("tickets", { title: `Chamado #${id}` });
+// O menu marca a tela de onde a pessoa veio (lista ou quadro)
+const back = backLink();
+const { user, main } = await initPage(back.pageId, { title: `Chamado #${id}` });
 
 function fail(title, text) {
   main.replaceChildren(
-    emptyState(title, text, "alert", el("a", { class: "button button-secondary", href: listUrl() }, "Voltar para a lista")),
+    emptyState(title, text, "alert", el("a", { class: "button button-secondary", href: back.href }, back.label)),
   );
   return halt();
 }
@@ -77,38 +80,13 @@ async function run(action, success) {
 // --- Ações ---
 
 async function changeStatus(transition) {
-  const body = { status: transition.to };
   const success = `Status alterado para ${STATUS_LABELS[transition.to]}.`;
-
+  // Com diálogo, os erros aparecem dentro dele; sem diálogo, `run` mostra o erro e recarrega
   if (transition.needs) {
-    const isSolution = transition.needs === "solution";
-    const saved = await openDialog({
-      title: transition.label,
-      text: isSolution
-        ? "Descreva o que foi feito. O solicitante vai ler a solução para aceitar ou recusar."
-        : transition.to === "ABERTO"
-          ? "Conte por que o chamado precisa ser reaberto. O motivo vira um comentário."
-          : "Conte o que ainda não está resolvido. O motivo vira um comentário e o chamado volta para o técnico.",
-      fields: [
-        {
-          name: "text",
-          label: isSolution ? "Solução" : "Motivo",
-          type: "textarea",
-          value: isSolution ? (ticket.solution ?? "") : "",
-          required: !(isSolution && ticket.solution),
-        },
-      ],
-      confirmLabel: transition.label,
-      onConfirm: async ({ text }) => {
-        if (text.trim()) body[transition.needs] = text.trim();
-        await api.post(`/tickets/${id}/status`, body);
-        return true;
-      },
-    });
-    if (saved) await refresh().then(() => toast(success));
+    if (await requestStatusChange(ticket, transition)) await refresh().then(() => toast(success));
     return;
   }
-  await run(() => api.post(`/tickets/${id}/status`, body), success);
+  await run(() => requestStatusChange(ticket, transition), success);
 }
 
 async function assign() {
@@ -223,7 +201,7 @@ function header() {
   return el(
     "header",
     { class: "ticket-header" },
-    el("a", { class: "back-link", href: listUrl() }, icon("back"), "Voltar para a lista"),
+    el("a", { class: "back-link", href: back.href }, icon("back"), back.label),
     el(
       "div",
       { class: "ticket-heading" },

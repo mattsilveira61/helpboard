@@ -1150,6 +1150,327 @@ textarea.input {
   color: var(--text-muted);
 }
 
+/* --- Quadro Kanban --- */
+
+.board-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  margin-bottom: 12px;
+  font-size: 14px;
+}
+
+.board-tip {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+
+.board-tip .icon {
+  width: 16px;
+  height: 16px;
+}
+
+.board {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(215px, 1fr));
+  align-items: start;
+  gap: 16px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+  transition: opacity 0.15s;
+}
+
+.board.is-loading {
+  opacity: 0.55;
+}
+
+/* Sem colunas (erro ao carregar): o aviso ocupa a largura toda */
+.board > .empty-state {
+  grid-column: 1 / -1;
+}
+
+.board-column {
+  --column-color: var(--status-aberto);
+  position: relative;
+  display: grid;
+  gap: 10px;
+  min-height: 240px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-top: 3px solid var(--column-color);
+  border-radius: var(--radius);
+  background: var(--surface-muted);
+  transition: border-color 0.15s, background 0.15s, opacity 0.15s;
+}
+
+.column-em_andamento {
+  --column-color: var(--status-andamento);
+}
+
+.column-resolvido {
+  --column-color: var(--status-resolvido);
+}
+
+.column-fechado {
+  --column-color: var(--status-fechado);
+}
+
+.board-column-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 2px;
+}
+
+.board-column-header h2 {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.board-count {
+  min-width: 26px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.board-list {
+  display: grid;
+  gap: 10px;
+}
+
+.board-empty {
+  padding: 24px 8px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-size: 13px;
+  text-align: center;
+}
+
+.board-more {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.board-more:hover {
+  text-decoration: underline;
+}
+
+.board-more .icon {
+  width: 16px;
+  height: 16px;
+}
+
+.board-card {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s, opacity 0.15s;
+}
+
+.board-card:hover {
+  border-color: var(--primary);
+}
+
+.board-card.is-movable {
+  cursor: grab;
+}
+
+/* Críticos em aberto: faixa vermelha e fundo levemente avermelhado */
+.board-card.is-critical {
+  border-left: 4px solid var(--priority-critica);
+  background: linear-gradient(var(--priority-critica-soft), var(--priority-critica-soft)), var(--surface);
+}
+
+.board-card.is-dragging {
+  opacity: 0.45;
+  cursor: grabbing;
+}
+
+/* Cartão solto numa coluna, esperando a resposta da API */
+.board-card.is-saving {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.card-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 28px;
+}
+
+.card-menu-button {
+  width: 28px;
+  height: 28px;
+  margin-left: auto;
+  color: var(--text-muted);
+}
+
+.card-menu-button .icon {
+  width: 18px;
+  height: 18px;
+}
+
+.board-card-title {
+  font-size: 14px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.card-category {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.card-bottom {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+  font-size: 13px;
+}
+
+.card-bottom .sla {
+  font-size: 12px;
+}
+
+.card-assignee {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-weight: 500;
+}
+
+.avatar-xs {
+  width: 22px;
+  height: 22px;
+  font-size: 10px;
+}
+
+/* Durante o arraste: as colunas que aceitam o cartão se destacam e as outras explicam por que não */
+.drop-hint {
+  display: none;
+}
+
+.board-column.drop-allowed {
+  border-color: var(--primary);
+  border-style: dashed;
+  border-top-style: solid;
+  background: var(--primary-soft);
+}
+
+.board-column.drop-allowed.drop-over {
+  border-style: solid;
+  box-shadow: 0 0 0 3px var(--focus);
+}
+
+.board-column.drop-blocked {
+  opacity: 0.6;
+}
+
+.board-column.drop-allowed .drop-hint,
+.board-column.drop-blocked.drop-over .drop-hint {
+  display: block;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.board-column.drop-allowed .drop-hint {
+  background: var(--surface);
+  color: var(--primary);
+}
+
+.board-column.drop-blocked.drop-over {
+  opacity: 1;
+  cursor: not-allowed;
+}
+
+.board-column.drop-blocked.drop-over .drop-hint {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+/* Menu ⋯ do cartão (popover nativo, posicionado pelo script) */
+.menu {
+  position: fixed;
+  inset: auto;
+  min-width: 220px;
+  margin: 0;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow);
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  font-size: 14px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+}
+
+.menu-item:hover,
+.menu-item:focus-visible {
+  background: var(--primary-soft);
+  color: var(--primary);
+  outline: none;
+}
+
+.menu-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.menu-hint .icon {
+  width: 14px;
+  height: 14px;
+}
+
 /* --- Formulário --- */
 
 .page-narrow {
@@ -1500,6 +1821,25 @@ textarea.input {
   .pagination-bar {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  /* No celular as colunas ficam lado a lado e o quadro rola na horizontal, uma coluna por vez */
+  .board {
+    grid-auto-columns: 82vw;
+    grid-template-columns: none;
+    grid-auto-flow: column;
+    margin-inline: -16px;
+    padding-inline: 16px;
+    scroll-padding-inline: 16px;
+    scroll-snap-type: x mandatory;
+  }
+
+  .board-column {
+    scroll-snap-align: start;
+  }
+
+  .board-tip {
+    display: none;
   }
 
   .pagination-controls {
