@@ -4,7 +4,24 @@ Sistema de gestão de chamados e suporte com quadro Kanban — FastAPI, PostgreS
 
 > 🚧 Em desenvolvimento. Planejamento completo em [docs/Planejamento.md](docs/Planejamento.md).
 
-## Rodando localmente
+## Rodando com Docker (um comando)
+
+Pré-requisito: Docker Desktop.
+
+```bash
+cp .env.example .env            # Windows: copy .env.example .env
+docker compose up --build
+```
+
+- Aplicação: http://localhost:5500
+- API e Swagger: http://localhost:8000/docs
+
+Sobem três contêineres: `postgres` (banco), `api` (FastAPI) e `web` (nginx servindo o frontend).
+A cada inicialização a API aplica as migrations e roda o seed, que é idempotente: os usuários de
+demonstração são criados uma vez e reiniciar não duplica nada. Para subir sem os dados de exemplo, defina
+`SEED_DEMO=false` no `.env`. Os dados ficam no volume `pgdata`; `docker compose down -v` apaga tudo.
+
+## Rodando para desenvolver
 
 Pré-requisitos: Python 3.12+, Docker Desktop.
 
@@ -12,8 +29,8 @@ Pré-requisitos: Python 3.12+, Docker Desktop.
 # 1. Variáveis de ambiente
 cp .env.example .env            # Windows: copy .env.example .env
 
-# 2. Banco PostgreSQL
-docker compose up -d
+# 2. Só o banco PostgreSQL (a API roda fora do Docker, com recarga automática)
+docker compose up -d postgres
 
 # 3. Ambiente Python
 python -m venv backend/.venv
