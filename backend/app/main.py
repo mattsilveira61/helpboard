@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -30,6 +32,20 @@ app = FastAPI(
         {"name": "infra", "description": "Verificação de saúde da API"},
     ],
 )
+
+logger = logging.getLogger("helpboard")
+
+
+# Registrado antes do CORS para ficar por dentro dele: assim o erro 500 também sai com os cabeçalhos de CORS
+# e o frontend mostra a mensagem, em vez de achar que a API está fora do ar. O detalhe vai só para o log.
+@app.middleware("http")
+async def unexpected_error_handler(request: Request, call_next):
+    try:
+        return await call_next(request)
+    except Exception:
+        logger.exception("Erro inesperado em %s %s", request.method, request.url.path)
+        return JSONResponse(status_code=500, content={"detail": "Erro interno no servidor. Tente de novo mais tarde."})
+
 
 app.add_middleware(
     CORSMiddleware,

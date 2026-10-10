@@ -58,6 +58,26 @@ def test_titulo_precisa_ter_de_3_a_120_caracteres(
     assert client.post("/tickets", headers=auth_header(solicitante), json=payload).status_code == 422
 
 
+@pytest.mark.parametrize("missing", [{"description": None}, {"description": "   "}, {"priority": None}])
+def test_descricao_e_prioridade_sao_obrigatorias(
+    client: TestClient, solicitante: User, category: Category, missing: dict
+):
+    payload = {"title": "Teste", "description": "x", "category_id": category.id, "priority": "BAIXA"} | missing
+    payload = {key: value for key, value in payload.items() if value is not None}
+
+    assert client.post("/tickets", headers=auth_header(solicitante), json=payload).status_code == 422
+
+
+def test_chamado_com_prazo_vencido_aparece_atrasado(
+    client: TestClient, db: Session, solicitante: User, category: Category
+):
+    ticket = open_ticket(client, solicitante, category)
+    db.get(Ticket, ticket["id"]).sla_deadline = datetime.now().astimezone() - timedelta(hours=1)
+    db.flush()
+
+    assert client.get(f"/tickets/{ticket['id']}", headers=auth_header(solicitante)).json()["is_overdue"] is True
+
+
 def test_chamados_exigem_login(client: TestClient):
     assert client.get("/tickets").status_code == 401
     assert client.post("/tickets", json={}).status_code == 401
@@ -284,6 +304,14 @@ def test_tecnico_nao_atribui(client: TestClient, tecnico: User, solicitante: Use
     assert response.status_code == 403
 
 
+def test_chamado_fechado_nao_troca_de_responsavel(client: TestClient, admin: User, fechado: dict):
+    response = client.put(
+        f"/tickets/{fechado['id']}/assignee", headers=auth_header(admin), json={"assigned_to_id": admin.id}
+    )
+
+    assert response.status_code == 409
+
+
 # --- Status (seção 4, Regras 5 e 6) ---
 
 
@@ -392,6 +420,26 @@ def test_tecnico_nao_fecha_nem_reabre(client: TestClient, tecnico: User, resolvi
 def test_admin_faz_qualquer_transicao_permitida(client: TestClient, admin: User, resolvido: dict):
     assert change_status(client, admin, resolvido["id"], "FECHADO").status_code == 200
     assert change_status(client, admin, resolvido["id"], "ABERTO", reason="Pedido da diretoria.").status_code == 200
+
+
+def test_falha_no_historico_desfaz_a_mudanca(
+    client: TestClient, db: Session, tecnico: User, em_andamento: dict, monkeypatch: pytest.MonkeyPatch
+):
+    """Regra 8: a mudança e o histórico vão juntos no mesmo commit; se um falha, nenhum fica gravado."""
+    def broken_log(*args, **kwargs):
+        raise RuntimeError("histórico fora do ar")
+
+    before = history_actions(db, em_andamento["id"])
+    monkeypatch.setattr("app.services.tickets._log", broken_log)
+
+    response = change_status(client, tecnico, em_andamento["id"], "RESOLVIDO", solution="Toner trocado.")
+
+    assert response.status_code == 500
+    db.rollback()  # o que a sessão da requisição faz ao ser fechada sem commit
+    ticket = db.get(Ticket, em_andamento["id"])
+    assert ticket.status == "EM_ANDAMENTO"
+    assert ticket.solution is None
+    assert history_actions(db, ticket.id) == before
 
 
 # --- Arquivamento (Regra 9) ---
