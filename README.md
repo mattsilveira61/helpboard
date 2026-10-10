@@ -2,7 +2,132 @@
 
 Sistema de gestão de chamados e suporte com quadro Kanban — FastAPI, PostgreSQL e JavaScript puro.
 
-> 🚧 Em desenvolvimento. Planejamento completo em [docs/Planejamento.md](docs/Planejamento.md).
+![Quadro Kanban](docs/screenshots/quadro.png)
+
+## O problema
+
+Numa empresa pequena, os pedidos de suporte chegam soltos: WhatsApp, e-mail, telefone, corredor. Ninguém sabe
+quem está cuidando de quê, o que está atrasado nem quanto tempo cada problema leva para ser resolvido.
+
+O HelpBoard junta tudo num lugar só. Cada pedido vira um chamado com responsável, prioridade, prazo (SLA),
+conversa e histórico, e a equipe acompanha a fila num quadro Kanban e num dashboard com os números do período.
+
+## Funcionalidades
+
+- **Três perfis**:
+  - o **solicitante** abre e acompanha os próprios chamados;
+  - o **técnico** assume e resolve;
+  - o **admin** vê tudo, atribui, gerencia usuários e categorias.
+- **Fluxo de status validado no servidor**: `ABERTO → EM_ANDAMENTO → RESOLVIDO → FECHADO`, com devolução à fila,
+  recusa da solução e reabertura. Resolver exige a solução; recusar e reabrir exigem o motivo.
+- **Prazo automático por prioridade** (Crítica 4 h, Alta 8 h, Média 24 h, Baixa 72 h), com aviso de atraso.
+- **Quadro Kanban** com arrastar e soltar (e um menu para quem não usa mouse).
+- **Lista** com busca, filtros combinados e paginação.
+- **Comentários e histórico automático**: quem fez o quê e quando, gravado na mesma transação da mudança.
+- **Dashboard** com indicadores calculados no PostgreSQL: fila atual, abertos × resolvidos por dia, tempo médio
+  de resolução, divisão por prioridade, categoria e técnico.
+- **Nada é apagado**: chamados são arquivados, e usuários e categorias, desativados. Comentários não se editam.
+- Tema claro e escuro automático, layout para celular e botões de login rápido com usuários de demonstração.
+
+## Telas
+
+| Dashboard | Detalhe do chamado |
+|---|---|
+| ![Dashboard](docs/screenshots/dashboard.png) | ![Detalhe](docs/screenshots/detalhe.png) |
+| **Lista com filtros** | **Tema escuro** |
+| ![Lista](docs/screenshots/lista.png) | ![Quadro no tema escuro](docs/screenshots/quadro-escuro.png) |
+
+<p align="center">
+  <img src="docs/screenshots/celular.png" alt="Lista no celular" width="260">
+  &nbsp;&nbsp;
+  <img src="docs/screenshots/login.png" alt="Tela de login" width="520">
+</p>
+
+## Stack
+
+| Camada | Tecnologia |
+|---|---|
+| API | Python 3.12, FastAPI, Pydantic v2 |
+| Banco | PostgreSQL 16, SQLAlchemy 2 (ORM), Alembic (migrations) |
+| Autenticação | JWT (PyJWT) + senhas com bcrypt |
+| Frontend | HTML, CSS e JavaScript puro (módulos ES), sem framework e sem build |
+| Testes | pytest (192 testes, com banco PostgreSQL real) |
+| Infra | Docker Compose (postgres + api + nginx) |
+
+## Arquitetura
+
+```mermaid
+flowchart LR
+    B["Navegador<br/>HTML + CSS + JS"] -- "fetch + JWT<br/>JSON" --> A["API FastAPI"]
+    A -- SQLAlchemy --> D[("PostgreSQL")]
+```
+
+O backend é dividido em camadas, e as regras de negócio ficam todas em `services/`:
+
+```text
+backend/app/
+├── routers/   recebem a requisição, validam com os schemas e checam o perfil
+├── schemas/   Pydantic: formato de entrada e saída (e a documentação do Swagger)
+├── services/  regras de negócio: transições, permissões, histórico, SLA, dashboard
+├── models/    tabelas SQLAlchemy
+└── core/      configuração, segurança (JWT, hash), conexão com o banco e erros
+```
+
+### Modelo de dados
+
+```mermaid
+erDiagram
+    users ||--o{ tickets : "abre (requester_id)"
+    users ||--o{ tickets : "atende (assigned_to_id)"
+    categories ||--o{ tickets : classifica
+    tickets ||--o{ comments : possui
+    users ||--o{ comments : escreve
+    tickets ||--o{ ticket_history : registra
+    users ||--o{ ticket_history : executa
+
+    users {
+        int id PK
+        varchar email UK
+        varchar role "ADMIN | TECNICO | SOLICITANTE"
+        bool is_active
+    }
+    categories {
+        int id PK
+        varchar name UK
+        bool is_active
+    }
+    tickets {
+        int id PK
+        varchar title
+        varchar status
+        varchar priority
+        int category_id FK
+        int requester_id FK
+        int assigned_to_id FK "nullable"
+        timestamptz sla_deadline
+        text solution "obrigatória se RESOLVIDO/FECHADO"
+        bool is_archived
+    }
+    comments {
+        int id PK
+        int ticket_id FK
+        int user_id FK
+        text message
+    }
+    ticket_history {
+        int id PK
+        int ticket_id FK
+        int user_id FK
+        varchar action
+        text old_value
+        text new_value
+    }
+```
+
+O banco também protege as regras: `CHECK` nos valores de perfil, status e prioridade, solução obrigatória em
+chamado resolvido ou fechado, e-mail e nome de categoria únicos, chaves estrangeiras sem exclusão em cascata e
+índices nas colunas usadas pelos filtros. O modelo completo, a matriz de permissões e as 14 regras de negócio
+estão em [docs/Planejamento.md](docs/Planejamento.md).
 
 ## Rodando com Docker (um comando)
 
@@ -57,6 +182,22 @@ python -m http.server 5500 --directory frontend
 
 O frontend é HTML, CSS e JavaScript puro (módulos ES), sem etapa de build. A porta 5500 precisa estar em
 `CORS_ORIGINS`, e o endereço da API fica em `frontend/js/config.js`.
+
+### Variáveis de ambiente
+
+Todas ficam no `.env`, que nunca vai para o Git. O `.env.example` traz valores prontos para rodar localmente.
+
+| Variável | Para que serve |
+|---|---|
+| `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`, `POSTGRES_PORT` | Credenciais do contêiner PostgreSQL |
+| `DATABASE_URL` | Conexão da API com o banco (`postgresql+psycopg://usuario:senha@host:porta/banco`) |
+| `TEST_DATABASE_URL` | Banco usado pelo pytest (é apagado e recriado a cada execução) |
+| `SECRET_KEY` | Chave que assina os tokens JWT. Em produção, gere uma forte (comando no `.env.example`) |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` | Validade do login (padrão 60) |
+| `CORS_ORIGINS` | Endereços do frontend autorizados a chamar a API, separados por vírgula |
+| `TIMEZONE` | Fuso dos filtros por data e do dashboard (o banco guarda tudo em UTC) |
+| `DEMO_PASSWORD` | Senha dos usuários de demonstração criados pelo seed |
+| `SEED_DEMO` | `false` faz o contêiner da API subir sem os dados de exemplo |
 
 ### Usuários de demonstração
 
@@ -161,13 +302,17 @@ frontend/
 ├── *.html          uma página por tela (login, dashboard, quadro, chamados, usuários, categorias)
 ├── css/style.css   tokens de cor, tema claro/escuro e layout responsivo
 └── js/
+    ├── config.js   endereço da API e usuários de demonstração
     ├── api.js      fetch com token, mensagens de erro da API e sessão expirada
+    ├── labels.js   nomes em português de status, prioridades e perfis
     ├── session.js  token e usuário no sessionStorage, página inicial por perfil
     ├── layout.js   menu lateral, guarda de páginas por perfil e topo
     ├── dom.js      criação de elementos, ícones, estados vazios e avisos (toasts)
     ├── dialog.js   diálogo modal para confirmar ações e pedir solução ou motivo
     ├── format.js   datas no formato brasileiro e tempo relativo ("há 2 horas")
     ├── tickets.js  selos de status, prioridade e prazo, e o que cada perfil pode fazer
+    ├── filters.js  filtros compartilhados entre a lista e o quadro
+    ├── admin.js    tabela, busca e confirmações das telas de usuários e categorias
     └── pages/      o script de cada página
 ```
 
@@ -190,3 +335,40 @@ pytest
 
 Os testes usam o banco `helpboard_test` (variável `TEST_DATABASE_URL`), recriado pelas migrations a cada execução.
 Cada teste roda dentro de uma transação desfeita no final, então o banco de desenvolvimento nunca é alterado.
+
+São 192 testes que cobrem as 14 regras de negócio do planejamento:
+- permissões de cada perfil e transições de status;
+- prazo e atraso;
+- histórico gravado na mesma transação (se o histórico falha, a mudança é desfeita);
+- filtros e indicadores do dashboard;
+- erro 500 sem vazar detalhes internos.
+
+## Decisões técnicas
+
+- **Regras no backend, em `services/`.** O frontend só esconde os botões que o perfil não pode usar. Quem decide
+  é a API, que responde `403` ou `409`. Assim as regras valem também para quem chama a API direto, e cada uma
+  pode ser testada sem passar pelo HTTP.
+- **O banco também valida.** Além do Pydantic, os `CHECK` e `UNIQUE` do PostgreSQL garantem os dados mesmo se
+  alguém escrever direto no banco. Os enums são `VARCHAR` + `CHECK`, e não o tipo `ENUM` do Postgres, que é mais
+  difícil de alterar numa migration.
+- **Chamado fora do alcance responde `404`, não `403`.** Assim ninguém descobre por tentativa quais números de
+  chamado existem.
+- **Nada é apagado.** Arquivar e desativar preservam o histórico e as estatísticas, que é o que um sistema de
+  suporte precisa para auditoria.
+- **Dashboard calculado pelo PostgreSQL** (`COUNT(*) FILTER`, `GROUP BY`, `AVG`), sem carregar os chamados na
+  memória da API. O agrupamento por dia usa o fuso da empresa, e não o UTC.
+- **Frontend sem framework e sem build.** Módulos ES nativos, `<dialog>` nativo e drag-and-drop HTML5. Todo
+  texto vindo da API entra por `textContent`, o que fecha a porta para XSS.
+- **Testes contra PostgreSQL real**, e não SQLite. As constraints, o fuso e as consultas do dashboard só se
+  comportam igual à produção no mesmo banco.
+
+## Aprendizados
+
+- Desenhar o fluxo de status e a matriz de permissões antes do código (o [planejamento](docs/Planejamento.md))
+  fez as regras virarem uma tabela de transições simples e testável, em vez de `if`s espalhados.
+- Agrupar por dia num fuso diferente de UTC no PostgreSQL exige cuidado: com o fuso enviado como parâmetro
+  comum, o banco não reconhece o `SELECT` e o `GROUP BY` como a mesma expressão.
+- Rodar cada teste dentro de uma transação desfeita no final deixa a suíte rápida e independente, sem
+  precisar limpar o banco entre um teste e outro.
+- Registrar o tratamento do erro 500 por dentro do CORS faz o navegador receber a mensagem de erro. Sem isso,
+  ele mostra um erro de CORS que esconde a causa real.

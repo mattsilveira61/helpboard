@@ -1,4 +1,4 @@
-// Endereço da API. No deploy (Etapa 14) passa a apontar para o servidor publicado.
+// Endereço da API. No deploy (Etapa 15) passa a apontar para o servidor publicado.
 export const API_URL = "http://localhost:8000";
 
 // Senha dos usuários de demonstração. É pública de propósito (está no README)
