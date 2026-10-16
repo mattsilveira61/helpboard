@@ -1,7 +1,7 @@
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # O .env fica na raiz do repositório (helpboard/.env), compartilhado com o docker-compose.
@@ -26,6 +26,14 @@ class Settings(BaseSettings):
     @property
     def cors_origins_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
+
+    @field_validator("database_url", "test_database_url")
+    @classmethod
+    def _use_psycopg(cls, url: str | None) -> str | None:
+        """O Neon entrega "postgresql://..." (ou "postgres://..."); o SQLAlchemy precisa saber o driver."""
+        if url and url.startswith(("postgres://", "postgresql://")):
+            return "postgresql+psycopg://" + url.split("://", 1)[1]
+        return url
 
 
 @lru_cache

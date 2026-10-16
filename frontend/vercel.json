@@ -1,0 +1,9 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://helpboard-api.onrender.com/:path*"
+    }
+  ],
+  "cleanUrls": false
+}

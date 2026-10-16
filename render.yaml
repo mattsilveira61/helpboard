@@ -1,0 +1,25 @@
+# Blueprint do Render: New → Blueprint → este repositório.
+# Só o DATABASE_URL (conexão do Neon) é pedido na hora; a SECRET_KEY é gerada pelo próprio Render.
+services:
+  - type: web
+    name: helpboard-api
+    runtime: docker
+    plan: free
+    region: virginia
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DEMO_PASSWORD
+        value: helpboard123
+      - key: SEED_DEMO
+        value: "true"
+      # Mesma porta do Dockerfile (o HEALTHCHECK do contêiner usa a 8000)
+      - key: PORT
+        value: "8000"
+      - key: TIMEZONE
+        value: America/Sao_Paulo

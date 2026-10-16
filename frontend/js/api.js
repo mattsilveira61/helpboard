@@ -21,7 +21,8 @@ function errorMessage(status, body) {
 }
 
 function buildUrl(path, query = {}) {
-  const url = new URL(path, API_URL);
+  // API_URL pode ser absoluta (local) ou só um caminho ("/api", publicado)
+  const url = new URL(API_URL + path, location.origin);
   for (const [key, value] of Object.entries(query)) {
     // Listas viram o parâmetro repetido (?status=ABERTO&status=EM_ANDAMENTO); vazios são ignorados
     for (const item of [value].flat()) {

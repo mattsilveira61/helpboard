@@ -27,6 +27,8 @@ function setBusy(busy) {
 async function login(email, password) {
   setAlert(alertBox, "");
   setBusy(true);
+  // No plano grátis a API dorme depois de 15 min sem uso e leva ~1 min para acordar
+  const slow = setTimeout(() => setAlert(alertBox, "Acordando o servidor (pode levar até 1 minuto)…", "info"), 3000);
   try {
     const { access_token: token, user } = await api.post("/auth/login", { email, password }, { auth: false });
     saveSession(token, user);
@@ -34,6 +36,8 @@ async function login(email, password) {
   } catch (error) {
     setAlert(alertBox, error.message);
     setBusy(false);
+  } finally {
+    clearTimeout(slow);
   }
 }
 
