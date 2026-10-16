@@ -4,6 +4,10 @@
 
 Sistema de gestão de chamados e suporte com quadro Kanban — FastAPI, PostgreSQL e JavaScript puro.
 
+**🔗 Demonstração: [helpboard-frontend.vercel.app](https://helpboard-frontend.vercel.app)** — entre com um dos
+botões de usuário de demonstração (admin, técnico ou solicitante). A API fica no plano grátis do Render, que
+dorme sem uso: a primeira visita pode levar até 1 minuto. API: [helpboard-api.onrender.com/docs](https://helpboard-api.onrender.com/docs).
+
 ![Quadro Kanban](docs/screenshots/quadro.png)
 
 ## O problema
@@ -61,6 +65,7 @@ conversa e histórico, e a equipe acompanha a fila num quadro Kanban e num dashb
 | Autenticação | JWT (PyJWT) + senhas com bcrypt |
 | Frontend | HTML, CSS e JavaScript puro (módulos ES), sem framework e sem build |
 | Testes | pytest (225 testes, com banco PostgreSQL real) e GitHub Actions com ruff |
+| Hospedagem | Vercel (painel), Render (API em Docker) e Neon (PostgreSQL), todos no plano grátis |
 | Infra | Docker Compose (postgres + api + nginx) |
 
 ## Arquitetura
