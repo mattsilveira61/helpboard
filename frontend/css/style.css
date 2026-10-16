@@ -2273,3 +2273,20 @@ textarea.input {
   font-size: 1.25rem;
   letter-spacing: 1px;
 }
+
+/* --- Respostas prontas --- */
+.canned-picker {
+  margin-right: auto;
+}
+
+.canned-body {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  white-space: pre-line;
+}
+
+.timeline-fechado_automaticamente::before {
+  background: var(--status-fechado);
+}

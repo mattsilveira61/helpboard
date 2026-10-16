@@ -27,6 +27,9 @@ conversa e histórico, e a equipe acompanha a fila num quadro Kanban e num dashb
 - **Lista** com busca, filtros combinados e paginação.
 - **Nota de satisfação**: depois de fechar, o solicitante avalia o atendimento de 1 a 5 estrelas, com comentário
   opcional. A média aparece no dashboard, geral e por técnico.
+- **Fechamento automático**: chamado resolvido sem resposta do solicitante por 7 dias fecha sozinho, na data em
+  que o prazo venceu, e o histórico registra o motivo.
+- **Respostas prontas**: o admin cadastra textos que os técnicos inserem nos comentários com um clique.
 - **Comentários e histórico automático**: quem fez o quê e quando, gravado na mesma transação da mudança.
 - **Dashboard** com indicadores calculados no PostgreSQL: fila atual, abertos × resolvidos por dia, tempo médio
   de resolução, satisfação, divisão por prioridade, categoria e técnico.
@@ -200,6 +203,7 @@ Todas ficam no `.env`, que nunca vai para o Git. O `.env.example` traz valores p
 | `ACCESS_TOKEN_EXPIRE_MINUTES` | Validade do login (padrão 60) |
 | `CORS_ORIGINS` | Endereços do frontend autorizados a chamar a API, separados por vírgula |
 | `TIMEZONE` | Fuso dos filtros por data e do dashboard (o banco guarda tudo em UTC) |
+| `AUTO_CLOSE_DAYS` | Dias que um chamado resolvido espera o solicitante antes de fechar sozinho (padrão 7; `0` desliga) |
 | `DEMO_PASSWORD` | Senha dos usuários de demonstração criados pelo seed |
 | `SEED_DEMO` | `false` faz o contêiner da API subir sem os dados de exemplo |
 
@@ -239,6 +243,10 @@ Ele pode ser executado mais de uma vez sem duplicar dados.
 | `POST /categories` | admin | Cria categoria (nome único, sem diferenciar maiúsculas) |
 | `PATCH /categories/{id}` | admin | Altera os campos enviados (inclusive reativar) |
 | `DELETE /categories/{id}` | admin | Desativa a categoria: some do formulário, mas continua nos chamados antigos |
+| `GET /canned-responses` | admin e técnico | Respostas prontas ativas (`include_inactive=true` só para admin) |
+| `POST /canned-responses` | admin | Cria resposta pronta (título único, sem diferenciar maiúsculas) |
+| `PATCH /canned-responses/{id}` | admin | Altera os campos enviados (inclusive reativar) |
+| `DELETE /canned-responses/{id}` | admin | Desativa a resposta: some do seletor dos técnicos |
 
 ## Chamados
 
@@ -367,6 +375,9 @@ São 192 testes que cobrem as 14 regras de negócio do planejamento:
   memória da API. O agrupamento por dia usa o fuso da empresa, e não o UTC.
 - **Frontend sem framework e sem build.** Módulos ES nativos, `<dialog>` nativo e drag-and-drop HTML5. Todo
   texto vindo da API entra por `textContent`, o que fecha a porta para XSS.
+- **Fechamento automático sem agendador.** O plano gratuito de hospedagem não tem cron, então a varredura roda
+  antes da lista, do detalhe e do dashboard: uma consulta pelo índice de status que quase nunca acha nada. O
+  `SELECT ... FOR UPDATE` garante que duas requisições ao mesmo tempo não fechem o mesmo chamado duas vezes.
 - **Testes contra PostgreSQL real**, e não SQLite. As constraints, o fuso e as consultas do dashboard só se
   comportam igual à produção no mesmo banco.
 

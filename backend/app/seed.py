@@ -17,6 +17,7 @@ from app.core.config import get_settings
 from app.core.database import SessionLocal
 from app.core.security import hash_password
 from app.models import (
+    CannedResponse,
     Category,
     Comment,
     HistoryAction,
@@ -146,6 +147,21 @@ def _ensure_categories(db: Session) -> dict[str, Category]:
     return existing
 
 
+CANNED_RESPONSES = [
+    ("Pedir mais detalhes",
+     "Para eu entender melhor o problema, pode mandar um print da tela e dizer desde quando acontece?"),
+    ("Reiniciar e testar",
+     "Pode reiniciar o computador e testar de novo? Muitas vezes isso já resolve. Se continuar, me avise aqui."),
+    ("Aguardando peça",
+     "O problema foi identificado e estamos aguardando a peça de reposição. Aviso aqui assim que chegar."),
+]
+
+
+def _ensure_canned_responses(db: Session) -> None:
+    existing = set(db.scalars(select(CannedResponse.title)))
+    db.add_all(CannedResponse(title=t, body=b) for t, b in CANNED_RESPONSES if t not in existing)
+
+
 def _ensure_users(db: Session, demo_password: str) -> dict[str, User]:
     by_email = {u.email: u for u in db.scalars(select(User))}
     users = {}
@@ -226,6 +242,7 @@ def run_seed(db: Session, demo_password: str) -> dict[str, int]:
     """Cria o que estiver faltando e devolve quantos registros de cada tipo existem no final."""
     categories = _ensure_categories(db)
     users = _ensure_users(db, demo_password)
+    _ensure_canned_responses(db)
     db.flush()
 
     if db.scalar(select(func.count()).select_from(Ticket)) == 0:
@@ -235,7 +252,7 @@ def run_seed(db: Session, demo_password: str) -> dict[str, int]:
     db.commit()
     return {
         model.__tablename__: db.scalar(select(func.count()).select_from(model))
-        for model in (User, Category, Ticket, Comment, TicketHistory)
+        for model in (User, Category, Ticket, Comment, TicketHistory, CannedResponse)
     }
 
 

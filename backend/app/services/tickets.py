@@ -12,6 +12,7 @@ from sqlalchemy import Select, case, func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.core.clock import start_of_day
+from app.core.config import get_settings
 from app.core.errors import ConflictError, ForbiddenError, NotFoundError
 from app.models import Category, Comment, HistoryAction, Priority, Role, Ticket, TicketHistory, TicketStatus, User
 from app.schemas.ticket import RatingCreate, StatusChange, TicketCreate, TicketFilters, TicketUpdate
@@ -49,7 +50,13 @@ def _now() -> datetime:
 
 
 def _log(
-    db: Session, ticket: Ticket, user: User, action: HistoryAction, old: object = None, new: object = None
+    db: Session,
+    ticket: Ticket,
+    user: User,
+    action: HistoryAction,
+    old: object = None,
+    new: object = None,
+    at: datetime | None = None,
 ) -> None:
     db.add(
         TicketHistory(
@@ -58,7 +65,7 @@ def _log(
             action=action,
             old_value=None if old is None else str(old),
             new_value=None if new is None else str(new),
-            created_at=_now(),
+            created_at=at or _now(),
         )
     )
 
@@ -113,8 +120,40 @@ def _apply_filters(query: Select[tuple[Ticket]], filters: TicketFilters) -> Sele
     return query
 
 
+# --- Fechamento automático ---
+
+def auto_close_stale(db: Session) -> int:
+    """Fecha os chamados RESOLVIDOS há mais de AUTO_CLOSE_DAYS sem resposta do solicitante.
+
+    Não há agendador: a varredura roda antes das consultas (lista, detalhe e dashboard). É uma consulta pelo
+    índice de status que quase sempre não acha nada. Com o FOR UPDATE, uma requisição simultânea espera a outra
+    terminar, e o PostgreSQL reavalia o WHERE na linha já fechada: o chamado fecha uma vez só e todas as
+    respostas já saem com ele FECHADO (com SKIP LOCKED, a outra devolvia o status antigo).
+    """
+    days = get_settings().auto_close_days
+    if not days:
+        return 0
+    limit = timedelta(days=days)
+    stale = db.scalars(
+        select(Ticket)
+        .where(Ticket.status == R, Ticket.is_archived.is_(False), Ticket.resolved_at < _now() - limit)
+        .with_for_update()
+    ).all()
+    for ticket in stale:
+        # Fecha na data em que o prazo venceu, para não distorcer os indicadores
+        ticket.closed_at = ticket.resolved_at + limit
+        # O histórico exige um autor: fica com o responsável, que foi quem registrou a solução
+        actor = ticket.assigned_to or ticket.requester
+        _log(db, ticket, actor, HistoryAction.FECHADO_AUTOMATICAMENTE, R, F, at=ticket.closed_at)
+        ticket.status = F
+    if stale:
+        db.commit()
+    return len(stale)
+
+
 def list_tickets(db: Session, user: User, filters: TicketFilters) -> tuple[list[Ticket], int]:
     """Devolve a página pedida e o total de chamados que atendem aos filtros."""
+    auto_close_stale(db)
     query = _apply_filters(_visible_query(user, filters.include_archived), filters)
 
     total = db.scalar(select(func.count()).select_from(query.order_by(None).subquery()))
@@ -125,6 +164,7 @@ def list_tickets(db: Session, user: User, filters: TicketFilters) -> tuple[list[
 
 def get_ticket(db: Session, ticket_id: int, user: User) -> Ticket:
     """Chamado que o usuário não pode ver responde 404, para não revelar que ele existe."""
+    auto_close_stale(db)
     ticket = db.scalar(_visible_query(user, include_archived=True).where(Ticket.id == ticket_id))
     if ticket is None:
         raise NotFoundError("Chamado não encontrado.")

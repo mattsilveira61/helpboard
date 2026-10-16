@@ -13,6 +13,7 @@ export const PAGES = [
   { id: "tickets", href: "tickets.html", label: "Chamados", icon: "list", roles: ["ADMIN", "TECNICO", "SOLICITANTE"] },
   { id: "users", href: "users.html", label: "Usuários", icon: "users", roles: ["ADMIN"], admin: true },
   { id: "categories", href: "categories.html", label: "Categorias", icon: "tag", roles: ["ADMIN"], admin: true },
+  { id: "canned", href: "canned-responses.html", label: "Respostas prontas", icon: "message", roles: ["ADMIN"], admin: true },
 ];
 
 function canAccess(page, user) {

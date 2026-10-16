@@ -11,3 +11,6 @@ export const DEMO_USERS = [
   { name: "Carlos", role: "TECNICO", email: "carlos@helpboard.dev" },
   { name: "João", role: "SOLICITANTE", email: "joao@helpboard.dev" },
 ];
+
+// Dias que um chamado RESOLVIDO espera o solicitante antes de fechar sozinho (AUTO_CLOSE_DAYS da API)
+export const AUTO_CLOSE_DAYS = 7;

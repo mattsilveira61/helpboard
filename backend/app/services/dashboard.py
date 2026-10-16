@@ -23,6 +23,7 @@ from app.schemas.dashboard import (
     ResolvedStats,
     SatisfactionStats,
 )
+from app.services.tickets import auto_close_stale
 
 UNRESOLVED = (TicketStatus.ABERTO, TicketStatus.EM_ANDAMENTO)
 
@@ -173,6 +174,7 @@ def _by_assignee(
 
 
 def get_dashboard(db: Session, user: User, params: DashboardParams) -> DashboardOut:
+    auto_close_stale(db)
     scope = _scope(user)
     created_in_period = _between(Ticket.created_at, params.start, params.end)
     resolved_in_period = _between(Ticket.resolved_at, params.start, params.end)

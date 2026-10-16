@@ -1,6 +1,7 @@
 // Detalhe do chamado: dados, ações conforme o perfil, comentários e histórico.
 
 import { api } from "../api.js";
+import { AUTO_CLOSE_DAYS } from "../config.js";
 import { openDialog } from "../dialog.js";
 import { el, emptyState, icon, initials, setAlert, toast } from "../dom.js";
 import { formatDateTime, formatRelative } from "../format.js";
@@ -187,8 +188,10 @@ function nextStep() {
       return `${ticket.assigned_to?.name ?? "O técnico"} está trabalhando no chamado.`;
     case "RESOLVIDO":
       return mine
-        ? "O técnico registrou uma solução. Confira e aceite para fechar, ou recuse se o problema continua."
-        : `Aguardando ${ticket.requester.name} aceitar ou recusar a solução.`;
+        ? `O técnico registrou uma solução. Confira e aceite para fechar, ou recuse se o problema continua. ` +
+            `Sem resposta em ${AUTO_CLOSE_DAYS} dias, o chamado é fechado automaticamente.`
+        : `Aguardando ${ticket.requester.name} aceitar ou recusar a solução ` +
+            `(fecha sozinho em ${AUTO_CLOSE_DAYS} dias sem resposta).`;
     case "FECHADO":
       return mine ? "Chamado encerrado. Se o problema voltar, você pode reabri-lo." : "Chamado encerrado.";
   }
@@ -357,6 +360,46 @@ function author(person, when) {
   );
 }
 
+// Respostas prontas: só técnico e admin; carregadas uma vez por tela
+let cannedResponses = null;
+
+async function loadCannedResponses() {
+  if (user.role === "SOLICITANTE") return [];
+  try {
+    cannedResponses ??= await api.get("/canned-responses");
+  } catch {
+    cannedResponses = [];
+  }
+  return cannedResponses;
+}
+
+function cannedPicker(textarea) {
+  if (!cannedResponses?.length) return null;
+  return el(
+    "label",
+    { class: "field field-compact canned-picker" },
+    el("span", { class: "visually-hidden" }, "Inserir resposta pronta"),
+    el(
+      "select",
+      {
+        class: "input",
+        onChange: (event) => {
+          const chosen = cannedResponses.find((r) => String(r.id) === event.target.value);
+          event.target.value = "";
+          if (!chosen) return;
+          // Insere no ponto do cursor, sem apagar o que já foi escrito
+          const { selectionStart: start, selectionEnd: end, value } = textarea;
+          textarea.value = value.slice(0, start) + chosen.body + value.slice(end);
+          textarea.focus();
+          textarea.selectionStart = textarea.selectionEnd = start + chosen.body.length;
+        },
+      },
+      el("option", { value: "" }, "Resposta pronta…"),
+      cannedResponses.map((r) => el("option", { value: String(r.id) }, r.title)),
+    ),
+  );
+}
+
 function commentForm() {
   const blocker = commentBlocker(ticket);
   if (blocker) return el("p", { class: "alert alert-info" }, blocker);
@@ -400,7 +443,7 @@ function commentForm() {
     el("label", { for: "comment-message", class: "visually-hidden" }, "Novo comentário"),
     message,
     alertBox,
-    el("div", { class: "form-actions" }, submit),
+    el("div", { class: "form-actions" }, cannedPicker(message), submit),
   );
 }
 
@@ -445,6 +488,8 @@ function describe(entry) {
       return "arquivou o chamado";
     case "AVALIADO":
       return `avaliou o atendimento com ${entry.new_value} de 5`;
+    case "FECHADO_AUTOMATICAMENTE":
+      return `— o chamado foi fechado automaticamente após ${AUTO_CLOSE_DAYS} dias sem resposta do solicitante`;
   }
   return entry.action;
 }
@@ -486,4 +531,5 @@ function render() {
   );
 }
 
+await loadCannedResponses();
 render();

@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 
 from app.core.security import verify_password
 from app.models import HistoryAction, Role, Ticket, TicketHistory, TicketStatus, User
-from app.seed import CATEGORIES, DEMO_TICKETS, USERS, run_seed
+from app.seed import CANNED_RESPONSES, CATEGORIES, DEMO_TICKETS, USERS, run_seed
 
 PASSWORD = "senha-de-teste"
 
@@ -14,6 +14,7 @@ def test_seed_cria_usuarios_categorias_e_chamados(db: Session):
     assert totals["users"] == len(USERS)
     assert totals["categories"] == len(CATEGORIES)
     assert totals["tickets"] == len(DEMO_TICKETS)
+    assert totals["canned_responses"] == len(CANNED_RESPONSES)
     # Todo chamado tem ao menos o evento CRIADO no histórico
     assert totals["ticket_history"] >= totals["tickets"]
 
