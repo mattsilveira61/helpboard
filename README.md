@@ -43,6 +43,8 @@ conversa e histórico, e a equipe acompanha a fila num quadro Kanban e num dashb
 | ![Dashboard](docs/screenshots/dashboard.png) | ![Detalhe](docs/screenshots/detalhe.png) |
 | **Lista com filtros** | **Tema escuro** |
 | ![Lista](docs/screenshots/lista.png) | ![Quadro no tema escuro](docs/screenshots/quadro-escuro.png) |
+| **Avaliação do atendimento** | **Respostas prontas** |
+| ![Chamado avaliado com 5 estrelas](docs/screenshots/avaliacao.png) | ![Gestão de respostas prontas](docs/screenshots/respostas-prontas.png) |
 
 <p align="center">
   <img src="docs/screenshots/celular.png" alt="Lista no celular" width="260">
@@ -58,7 +60,7 @@ conversa e histórico, e a equipe acompanha a fila num quadro Kanban e num dashb
 | Banco | PostgreSQL 16, SQLAlchemy 2 (ORM), Alembic (migrations) |
 | Autenticação | JWT (PyJWT) + senhas com bcrypt |
 | Frontend | HTML, CSS e JavaScript puro (módulos ES), sem framework e sem build |
-| Testes | pytest (192 testes, com banco PostgreSQL real) |
+| Testes | pytest (225 testes, com banco PostgreSQL real) e GitHub Actions com ruff |
 | Infra | Docker Compose (postgres + api + nginx) |
 
 ## Arquitetura
@@ -352,12 +354,13 @@ pytest
 Os testes usam o banco `helpboard_test` (variável `TEST_DATABASE_URL`), recriado pelas migrations a cada execução.
 Cada teste roda dentro de uma transação desfeita no final, então o banco de desenvolvimento nunca é alterado.
 
-São 192 testes que cobrem as 14 regras de negócio do planejamento:
+São 225 testes, que rodam no GitHub Actions a cada push junto com o `ruff`. Eles cobrem as 14 regras de negócio do planejamento e as funções que vieram depois:
 - permissões de cada perfil e transições de status;
 - prazo e atraso;
 - histórico gravado na mesma transação (se o histórico falha, a mudança é desfeita);
 - filtros e indicadores do dashboard;
-- erro 500 sem vazar detalhes internos.
+- erro 500 sem vazar detalhes internos;
+- limite de tentativas de login, nota de satisfação, fechamento automático e respostas prontas.
 
 ## Decisões técnicas
 
