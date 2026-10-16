@@ -21,6 +21,7 @@ from app.schemas.dashboard import (
     DayCount,
     Period,
     ResolvedStats,
+    SatisfactionStats,
 )
 
 UNRESOLVED = (TicketStatus.ABERTO, TicketStatus.EM_ANDAMENTO)
@@ -108,6 +109,14 @@ def _resolved(db: Session, scope: list[ColumnElement[bool]], in_period: ColumnEl
     return ResolvedStats(total=total, avg_resolution_hours=_hours(avg_hours))
 
 
+def _satisfaction(db: Session, scope: list[ColumnElement[bool]], in_period: ColumnElement[bool]) -> SatisfactionStats:
+    query = select(Ticket.rating, func.count()).where(*scope, in_period).group_by(Ticket.rating)
+    counts = dict(db.execute(query).all())
+    total = sum(counts.values())
+    average = round(sum(r * n for r, n in counts.items()) / total, 2) if total else None
+    return SatisfactionStats(total=total, average=average, distribution={r: counts.get(r, 0) for r in range(1, 6)})
+
+
 def _timeline(db: Session, scope: list[ColumnElement[bool]], params: DashboardParams) -> list[DayCount]:
     def per_day(column) -> dict[date, int]:
         day = _local_day(column)
@@ -120,13 +129,26 @@ def _timeline(db: Session, scope: list[ColumnElement[bool]], params: DashboardPa
 
 
 def _by_assignee(
-    db: Session, user: User, scope: list[ColumnElement[bool]], resolved_in_period: ColumnElement[bool]
+    db: Session,
+    user: User,
+    scope: list[ColumnElement[bool]],
+    resolved_in_period: ColumnElement[bool],
+    rated_in_period: ColumnElement[bool],
 ) -> list[AssigneeStats]:
     open_ = func.count().filter(Ticket.status == TicketStatus.ABERTO)
     in_progress = func.count().filter(Ticket.status == TicketStatus.EM_ANDAMENTO)
     resolved = func.count().filter(resolved_in_period)
     query = (
-        select(User.id, User.name, open_, in_progress, resolved, func.avg(RESOLUTION_HOURS).filter(resolved_in_period))
+        select(
+            User.id,
+            User.name,
+            open_,
+            in_progress,
+            resolved,
+            func.avg(RESOLUTION_HOURS).filter(resolved_in_period),
+            func.avg(Ticket.rating).filter(rated_in_period),
+            func.count(Ticket.rating).filter(rated_in_period),
+        )
         .outerjoin(Ticket, and_(Ticket.assigned_to_id == User.id, *scope))
         .group_by(User.id)
         # Técnicos ativos aparecem mesmo zerados; os demais (admin, desativados) só se tiverem números
@@ -136,8 +158,17 @@ def _by_assignee(
     if user.role == Role.TECNICO:
         query = query.where(User.id == user.id)
     return [
-        AssigneeStats(id=id_, name=name, open=o, in_progress=p, resolved=r, avg_resolution_hours=_hours(avg))
-        for id_, name, o, p, r, avg in db.execute(query).all()
+        AssigneeStats(
+            id=id_,
+            name=name,
+            open=o,
+            in_progress=p,
+            resolved=r,
+            avg_resolution_hours=_hours(avg),
+            avg_rating=None if avg_rating is None else round(float(avg_rating), 2),
+            ratings=n_ratings,
+        )
+        for id_, name, o, p, r, avg, avg_rating, n_ratings in db.execute(query).all()
     ]
 
 
@@ -145,12 +176,14 @@ def get_dashboard(db: Session, user: User, params: DashboardParams) -> Dashboard
     scope = _scope(user)
     created_in_period = _between(Ticket.created_at, params.start, params.end)
     resolved_in_period = _between(Ticket.resolved_at, params.start, params.end)
+    rated_in_period = _between(Ticket.rated_at, params.start, params.end)
     return DashboardOut(
         scope="TODOS" if user.role == Role.ADMIN else "MEUS",
         period=Period(start=params.start, end=params.end),
         backlog=_backlog(db, scope),
         created=_created(db, scope, created_in_period),
         resolved=_resolved(db, scope, resolved_in_period),
+        satisfaction=_satisfaction(db, scope, rated_in_period),
         timeline=_timeline(db, scope, params),
-        by_assignee=_by_assignee(db, user, scope, resolved_in_period),
+        by_assignee=_by_assignee(db, user, scope, resolved_in_period, rated_in_period),
     )

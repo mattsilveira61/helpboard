@@ -5,7 +5,15 @@ from fastapi import APIRouter, Depends, Query, status
 from app.core.deps import CurrentUser, DbSession, require_roles
 from app.models import Role, User
 from app.schemas.common import Page, error_responses
-from app.schemas.ticket import AssigneeUpdate, StatusChange, TicketCreate, TicketFilters, TicketOut, TicketUpdate
+from app.schemas.ticket import (
+    AssigneeUpdate,
+    RatingCreate,
+    StatusChange,
+    TicketCreate,
+    TicketFilters,
+    TicketOut,
+    TicketUpdate,
+)
 from app.services import tickets as ticket_service
 
 router = APIRouter(prefix="/tickets", tags=["chamados"], responses=error_responses(401))
@@ -66,6 +74,17 @@ def change_status(ticket_id: int, data: StatusChange, db: DbSession, user: Curre
     """
     ticket = ticket_service.get_ticket(db, ticket_id, user)
     return ticket_service.change_status(db, ticket, data, user)
+
+
+@router.post("/{ticket_id}/rating", response_model=TicketOut, responses=error_responses(403, 404, 409))
+def rate_ticket(ticket_id: int, data: RatingCreate, db: DbSession, user: CurrentUser):
+    """Nota de 1 a 5 para o atendimento, com comentário opcional.
+
+    Só quem abriu o chamado, uma vez e com ele FECHADO. Se o chamado for reaberto, a nota é apagada
+    (fica no histórico) e pode ser dada de novo no próximo fechamento.
+    """
+    ticket = ticket_service.get_ticket(db, ticket_id, user)
+    return ticket_service.rate_ticket(db, ticket, data, user)
 
 
 @router.delete("/{ticket_id}", response_model=TicketOut, responses=error_responses(403, 404, 409))

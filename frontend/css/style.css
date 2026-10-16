@@ -1930,20 +1930,20 @@ textarea.input {
   background: var(--success);
 }
 
-.timeline {
+.daychart {
   display: flex;
   gap: 2px;
   overflow-x: auto;
 }
 
-.timeline-day {
+.daychart-day {
   display: grid;
   flex: 1 0 8px;
   grid-template-rows: 140px 16px;
   gap: 4px;
 }
 
-.timeline-bars {
+.daychart-bars {
   display: flex;
   align-items: flex-end;
   gap: 1px;
@@ -1956,7 +1956,7 @@ textarea.input {
   border-radius: 2px 2px 0 0;
 }
 
-.timeline-label {
+.daychart-label {
   overflow: visible;
   color: var(--text-muted);
   font-size: 10px;
@@ -2234,4 +2234,42 @@ textarea.input {
     transition: none !important;
     animation: none !important;
   }
+}
+
+/* --- Nota de satisfação --- */
+.rating-form {
+  display: grid;
+  gap: 10px;
+}
+
+.star-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-wrap: wrap;
+}
+
+.star-row .muted {
+  margin-left: 8px;
+}
+
+.star-button {
+  padding: 2px 4px;
+  border: 0;
+  background: none;
+  color: var(--warning);
+  font-size: 1.75rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.star-button:focus-visible {
+  outline: 2px solid var(--focus);
+  border-radius: var(--radius-sm);
+}
+
+.stars {
+  color: var(--warning);
+  font-size: 1.25rem;
+  letter-spacing: 1px;
 }

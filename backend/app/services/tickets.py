@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session, selectinload
 from app.core.clock import start_of_day
 from app.core.errors import ConflictError, ForbiddenError, NotFoundError
 from app.models import Category, Comment, HistoryAction, Priority, Role, Ticket, TicketHistory, TicketStatus, User
-from app.schemas.ticket import StatusChange, TicketCreate, TicketFilters, TicketUpdate
+from app.schemas.ticket import RatingCreate, StatusChange, TicketCreate, TicketFilters, TicketUpdate
 from app.services.sla import calculate_sla_deadline
 
 A, E, R, F = TicketStatus.ABERTO, TicketStatus.EM_ANDAMENTO, TicketStatus.RESOLVIDO, TicketStatus.FECHADO
@@ -299,8 +299,9 @@ def change_status(db: Session, ticket: Ticket, data: StatusChange, user: User) -
         case (_, TicketStatus.FECHADO):
             ticket.closed_at = now
         case (TicketStatus.FECHADO, TicketStatus.ABERTO):
-            # A solução antiga continua registrada no histórico (evento SOLUCAO_REGISTRADA)
+            # A solução e a nota antigas continuam registradas no histórico (SOLUCAO_REGISTRADA e AVALIADO)
             ticket.solution = ticket.resolved_at = ticket.closed_at = None
+            ticket.rating = ticket.rating_comment = ticket.rated_at = None
 
     if data.reason:
         db.add(Comment(ticket=ticket, user=user, message=data.reason, created_at=now))
@@ -308,6 +309,24 @@ def change_status(db: Session, ticket: Ticket, data: StatusChange, user: User) -
     action = HistoryAction.REABERTO if old == F else HistoryAction.STATUS_ALTERADO
     _log(db, ticket, user, action, old, new)
     ticket.status = new
+    db.commit()
+    return ticket
+
+
+# --- Nota de satisfação ---
+
+def rate_ticket(db: Session, ticket: Ticket, data: RatingCreate, user: User) -> Ticket:
+    """Só quem abriu o chamado avalia, uma vez, depois de fechado. Reabrir apaga a nota (vale a do novo fechamento)."""
+    _ensure_editable(ticket)
+    if ticket.requester_id != user.id:
+        raise ForbiddenError("Só quem abriu o chamado pode avaliar o atendimento.")
+    if ticket.status != TicketStatus.FECHADO:
+        raise ConflictError("Só é possível avaliar um chamado fechado.")
+    if ticket.rating is not None:
+        raise ConflictError("Este chamado já foi avaliado.")
+
+    ticket.rating, ticket.rating_comment, ticket.rated_at = data.rating, data.comment or None, _now()
+    _log(db, ticket, user, HistoryAction.AVALIADO, None, data.rating)
     db.commit()
     return ticket
 

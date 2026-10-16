@@ -63,6 +63,9 @@ class DemoTicket:
     reopened: bool = False
     archived: bool = False
     requester: str = "joao"
+    # Nota de satisfação dada pelo solicitante depois de fechar (1 a 5)
+    rating: int | None = None
+    rating_comment: str | None = None
 
 
 A, E, R, F = TicketStatus.ABERTO, TicketStatus.EM_ANDAMENTO, TicketStatus.RESOLVIDO, TicketStatus.FECHADO
@@ -116,16 +119,18 @@ DEMO_TICKETS = [
                solution="Senha redefinida e usuário desbloqueado."),
     # --- FECHADO ---
     DemoTicket("Instalar o Adobe Reader", "Preciso abrir arquivos PDF dos fornecedores.",
-               "Software", Priority.BAIXA, F, 200, assignee="maria", solution="Adobe Reader instalado."),
+               "Software", Priority.BAIXA, F, 200, assignee="maria", solution="Adobe Reader instalado.",
+               rating=5, rating_comment="Resolvido no mesmo dia."),
     DemoTicket("Mouse sem fio parou de funcionar", "O mouse não responde, mesmo depois de reconectar o receptor.",
-               "Hardware", Priority.BAIXA, F, 150, assignee="carlos", solution="Pilhas do mouse trocadas.",
+               "Hardware", Priority.BAIXA, F, 150, assignee="carlos", solution="Pilhas do mouse trocadas.", rating=4,
                comments=((7, "joao", "Funcionou, obrigado!"),)),
     DemoTicket("Configurar e-mail no celular", "Quero receber os e-mails da empresa no meu celular.",
                "E-mail", Priority.MEDIA, F, 100, assignee="maria",
                solution="Conta configurada no aplicativo Outlook do celular."),
     DemoTicket("Relatório de vendas com valores errados", "O relatório mensal soma vendas de meses anteriores.",
                "Sistema interno", Priority.ALTA, F, 170, assignee="carlos",
-               solution="Corrigido o filtro de datas do relatório no ERP."),
+               solution="Corrigido o filtro de datas do relatório no ERP.",
+               rating=3, rating_comment="Resolveu, mas demorou."),
     DemoTicket("Pedido de cadeira nova", "Minha cadeira está quebrada e precisa ser trocada.",
                "Outros", Priority.BAIXA, F, 300, assignee="carlos", archived=True,
                solution="Pedido encaminhado ao setor de compras."),
@@ -172,7 +177,7 @@ def _build_ticket(spec: DemoTicket, users: dict[str, User], categories: dict[str
     )
     last = created
 
-    def log(moment: int, user: User, action: HistoryAction, old: str | None = None, new: str | None = None):
+    def log(moment: float, user: User, action: HistoryAction, old: str | None = None, new: str | None = None):
         nonlocal last
         last = created + step * moment
         ticket.history.append(TicketHistory(user=user, action=action, old_value=old, new_value=new, created_at=last))
@@ -196,6 +201,10 @@ def _build_ticket(spec: DemoTicket, users: dict[str, User], categories: dict[str
     if passes_through >= 3:
         ticket.closed_at = created + step * 8
         move(8, requester, F)
+        if spec.rating:
+            ticket.rating, ticket.rating_comment = spec.rating, spec.rating_comment
+            ticket.rated_at = created + step * 8.5
+            log(8.5, requester, HistoryAction.AVALIADO, new=str(spec.rating))
     if spec.reopened:
         # Reabrir limpa solução e datas; o valor antigo da solução fica guardado no histórico
         log(9, requester, HistoryAction.REABERTO, F, A)

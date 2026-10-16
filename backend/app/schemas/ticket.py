@@ -67,6 +67,11 @@ class StatusChange(BaseModel):
     reason: Text | None = None
 
 
+class RatingCreate(BaseModel):
+    rating: int = Field(ge=1, le=5, description="De 1 (muito insatisfeito) a 5 (muito satisfeito)")
+    comment: Annotated[str, StringConstraints(strip_whitespace=True, max_length=500)] | None = None
+
+
 class UserSummary(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -99,6 +104,9 @@ class TicketOut(BaseModel):
     updated_at: datetime
     resolved_at: datetime | None
     closed_at: datetime | None
+    rating: int | None
+    rating_comment: str | None
+    rated_at: datetime | None
 
     @computed_field
     @property

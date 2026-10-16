@@ -64,6 +64,14 @@ class ResolvedStats(BaseModel):
     avg_resolution_hours: float | None = Field(description="Da abertura até a solução; null se não houver nenhum")
 
 
+class SatisfactionStats(BaseModel):
+    """Notas dadas no período (data da avaliação)."""
+
+    total: int
+    average: float | None = Field(description="Média de 1 a 5; null se não houver nenhuma")
+    distribution: dict[int, int] = Field(description="Quantas notas de cada valor, de 1 a 5")
+
+
 class DayCount(BaseModel):
     day: date
     created: int
@@ -77,6 +85,8 @@ class AssigneeStats(BaseModel):
     in_progress: int
     resolved: int = Field(description="Resolvidos no período")
     avg_resolution_hours: float | None
+    avg_rating: float | None = Field(description="Média das notas recebidas no período")
+    ratings: int
 
 
 class DashboardOut(BaseModel):
@@ -87,5 +97,6 @@ class DashboardOut(BaseModel):
     backlog: Backlog
     created: CreatedStats
     resolved: ResolvedStats
+    satisfaction: SatisfactionStats
     timeline: list[DayCount] = Field(description="Um item por dia do período, inclusive os dias sem movimento")
     by_assignee: list[AssigneeStats] = Field(description="Técnicos ativos (mesmo com zero) e quem tiver chamados")

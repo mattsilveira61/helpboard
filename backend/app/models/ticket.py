@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import CheckConstraint, DateTime, ForeignKey, String, Text, false, func
+from sqlalchemy import CheckConstraint, DateTime, ForeignKey, SmallInteger, String, Text, false, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -32,6 +32,9 @@ class Ticket(Base):
         CheckConstraint(
             "status <> 'EM_ANDAMENTO' OR assigned_to_id IS NOT NULL", name="in_progress_has_assignee"
         ),
+        # Nota de satisfação: de 1 a 5, e só em chamado fechado
+        CheckConstraint("rating BETWEEN 1 AND 5", name="rating_range"),
+        CheckConstraint("rating IS NULL OR status = 'FECHADO'", name="rating_only_closed"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -62,6 +65,10 @@ class Ticket(Base):
     )
     resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    rating: Mapped[int | None] = mapped_column(SmallInteger)
+    rating_comment: Mapped[str | None] = mapped_column(Text)
+    rated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     category: Mapped[Category] = relationship()
     requester: Mapped[User] = relationship(foreign_keys=[requester_id])

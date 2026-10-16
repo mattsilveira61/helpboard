@@ -237,6 +237,85 @@ function descriptionCard() {
   );
 }
 
+// --- Nota de satisfação ---
+
+const RATING_LABELS = ["", "Muito insatisfeito", "Insatisfeito", "Regular", "Satisfeito", "Muito satisfeito"];
+
+function stars(rating) {
+  return el("span", { class: "stars", "aria-label": `${rating} de 5 estrelas` }, "★".repeat(rating) + "☆".repeat(5 - rating));
+}
+
+function ratingForm() {
+  let chosen = 0;
+  const alertBox = el("p", { class: "alert", role: "alert", hidden: true });
+  const comment = el("textarea", { class: "input", id: "rating-comment", rows: 2, maxlength: 500, placeholder: "Comentário (opcional)" });
+  const submit = el("button", { type: "submit", class: "button button-primary", disabled: true }, "Enviar avaliação");
+  const hint = el("span", { class: "muted" }, "Escolha de 1 a 5 estrelas");
+  const buttons = [1, 2, 3, 4, 5].map((n) =>
+    el("button", {
+      type: "button",
+      class: "star-button",
+      "aria-label": `${n} – ${RATING_LABELS[n]}`,
+      "aria-pressed": "false",
+      onClick: () => {
+        chosen = n;
+        buttons.forEach((b, i) => {
+          b.textContent = i < n ? "★" : "☆";
+          b.setAttribute("aria-pressed", String(i < n));
+        });
+        hint.textContent = RATING_LABELS[n];
+        submit.disabled = false;
+      },
+    }, "☆"),
+  );
+
+  return el(
+    "form",
+    {
+      class: "rating-form",
+      onSubmit: async (event) => {
+        event.preventDefault();
+        setAlert(alertBox, "");
+        submit.disabled = true;
+        try {
+          await api.post(`/tickets/${id}/rating`, { rating: chosen, comment: comment.value.trim() || null });
+          await refresh();
+          toast("Obrigado pela avaliação!");
+        } catch (error) {
+          setAlert(alertBox, error.message);
+          submit.disabled = false;
+        }
+      },
+    },
+    el("p", {}, "Como foi o atendimento?"),
+    el("div", { class: "star-row", role: "group", "aria-label": "Nota" }, buttons, hint),
+    el("label", { for: "rating-comment", class: "visually-hidden" }, "Comentário da avaliação"),
+    comment,
+    alertBox,
+    el("div", { class: "form-actions" }, submit),
+  );
+}
+
+function ratingCard() {
+  if (ticket.rating) {
+    return el(
+      "section",
+      { class: "card rating-card", "aria-labelledby": "rating-title" },
+      el("h3", { class: "card-title", id: "rating-title" }, "Avaliação do atendimento"),
+      el("p", {}, stars(ticket.rating), " ", el("strong", {}, RATING_LABELS[ticket.rating])),
+      ticket.rating_comment && el("p", { class: "prose" }, ticket.rating_comment),
+    );
+  }
+  const canRate = ticket.status === "FECHADO" && !ticket.is_archived && ticket.requester.id === user.id;
+  if (!canRate) return null;
+  return el(
+    "section",
+    { class: "card rating-card", "aria-labelledby": "rating-title" },
+    el("h3", { class: "card-title", id: "rating-title" }, "Avalie o atendimento"),
+    ratingForm(),
+  );
+}
+
 function detail(term, value) {
   return [el("dt", {}, term), el("dd", {}, value)];
 }
@@ -364,6 +443,8 @@ function describe(entry) {
       return "registrou a solução";
     case "ARQUIVADO":
       return "arquivou o chamado";
+    case "AVALIADO":
+      return `avaliou o atendimento com ${entry.new_value} de 5`;
   }
   return entry.action;
 }
@@ -399,7 +480,7 @@ function render() {
     el(
       "div",
       { class: "ticket-layout" },
-      el("div", { class: "ticket-main" }, descriptionCard(), commentsCard()),
+      el("div", { class: "ticket-main" }, descriptionCard(), ratingCard(), commentsCard()),
       el("aside", { class: "ticket-side" }, detailsCard(), historyCard()),
     ),
   );

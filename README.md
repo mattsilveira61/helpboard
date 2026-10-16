@@ -25,9 +25,11 @@ conversa e histórico, e a equipe acompanha a fila num quadro Kanban e num dashb
 - **Prazo automático por prioridade** (Crítica 4 h, Alta 8 h, Média 24 h, Baixa 72 h), com aviso de atraso.
 - **Quadro Kanban** com arrastar e soltar (e um menu para quem não usa mouse).
 - **Lista** com busca, filtros combinados e paginação.
+- **Nota de satisfação**: depois de fechar, o solicitante avalia o atendimento de 1 a 5 estrelas, com comentário
+  opcional. A média aparece no dashboard, geral e por técnico.
 - **Comentários e histórico automático**: quem fez o quê e quando, gravado na mesma transação da mudança.
 - **Dashboard** com indicadores calculados no PostgreSQL: fila atual, abertos × resolvidos por dia, tempo médio
-  de resolução, divisão por prioridade, categoria e técnico.
+  de resolução, satisfação, divisão por prioridade, categoria e técnico.
 - **Nada é apagado**: chamados são arquivados, e usuários e categorias, desativados. Comentários não se editam.
 - Tema claro e escuro automático, layout para celular e botões de login rápido com usuários de demonstração.
 
@@ -252,6 +254,7 @@ Cada perfil só enxerga parte dos chamados: o admin vê todos, o técnico vê os
 | `PUT /tickets/{id}/assignee` | admin | Atribui, reatribui ou remove (`null`) o responsável |
 | `POST /tickets/{id}/assume` | técnico | Assume um chamado `ABERTO` sem responsável |
 | `POST /tickets/{id}/status` | conforme a transição | Muda o status. `RESOLVIDO` exige `solution`; recusar a solução e reabrir exigem `reason` |
+| `POST /tickets/{id}/rating` | solicitante do chamado | Nota de 1 a 5 (`rating`) e `comment` opcional; só com o chamado `FECHADO` e uma vez (reabrir apaga a nota) |
 | `DELETE /tickets/{id}` | admin | Arquiva o chamado (não há exclusão física) |
 | `GET /tickets/{id}/comments` | quem vê o chamado | Comentários em ordem cronológica |
 | `POST /tickets/{id}/comments` | quem vê o chamado | Comenta em nome do usuário logado (não em chamado fechado ou arquivado) |
@@ -290,8 +293,9 @@ Chamados arquivados não entram na conta.
 | `backlog` | Fila de agora: abertos, em andamento, críticos, atrasados (SLA vencido) e sem responsável |
 | `created` | Abertos no período: total e divisão por status, prioridade e categoria |
 | `resolved` | Resolvidos no período e tempo médio de resolução em horas (da abertura até a solução) |
+| `satisfaction` | Notas dadas no período: total, média e quantas de cada valor (1 a 5) |
 | `timeline` | Abertos e resolvidos dia a dia, inclusive os dias sem movimento (pronto para um gráfico) |
-| `by_assignee` | Por técnico: abertos, em andamento, resolvidos no período e tempo médio |
+| `by_assignee` | Por técnico: abertos, em andamento, resolvidos no período, tempo médio e média das notas |
 
 O período vem de `start` e `end` (`?start=2026-03-01&end=2026-03-31`). O padrão são os últimos 30 dias, e o
 máximo é 366 dias. Os dias seguem o fuso `TIMEZONE`.

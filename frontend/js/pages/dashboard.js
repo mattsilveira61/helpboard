@@ -63,13 +63,23 @@ function backlogCards(data) {
   );
 }
 
+function formatRating(value) {
+  return value == null ? "—" : `${value.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} / 5`;
+}
+
 function periodCards(data) {
+  const { satisfaction } = data;
   return el(
     "div",
-    { class: "stats stats-3" },
+    { class: "stats stats-4" },
     stat({ label: "Abertos no período", value: data.created.total }),
     stat({ label: "Resolvidos no período", value: data.resolved.total }),
     stat({ label: "Tempo médio de resolução", value: formatHours(data.resolved.avg_resolution_hours), hint: "da abertura até a solução" }),
+    stat({
+      label: "Satisfação",
+      value: formatRating(satisfaction.average),
+      hint: satisfaction.total ? `${satisfaction.total} avaliações no período` : "nenhuma avaliação no período",
+    }),
   );
 }
 
@@ -93,18 +103,18 @@ function timeline(data) {
     ),
     el(
       "div",
-      { class: "timeline", role: "img", "aria-label": `Abertos e resolvidos por dia, de ${formatDay(data.period.start)} a ${formatDay(data.period.end)}` },
+      { class: "daychart", role: "img", "aria-label": `Abertos e resolvidos por dia, de ${formatDay(data.period.start)} a ${formatDay(data.period.end)}` },
       data.timeline.map((d, i) =>
         el(
           "div",
-          { class: "timeline-day", title: `${formatDay(d.day)}: ${d.created} abertos, ${d.resolved} resolvidos` },
+          { class: "daychart-day", title: `${formatDay(d.day)}: ${d.created} abertos, ${d.resolved} resolvidos` },
           el(
             "div",
-            { class: "timeline-bars" },
+            { class: "daychart-bars" },
             el("span", { class: "bar bar-created", style: `height: ${(d.created / max) * 100}%` }),
             el("span", { class: "bar bar-resolved", style: `height: ${(d.resolved / max) * 100}%` }),
           ),
-          el("span", { class: "timeline-label", "aria-hidden": "true" }, i % step === 0 ? formatDay(d.day) : ""),
+          el("span", { class: "daychart-label", "aria-hidden": "true" }, i % step === 0 ? formatDay(d.day) : ""),
         ),
       ),
     ),
@@ -152,6 +162,11 @@ function byCategory(data) {
   return bars("Abertos no período por categoria", items, "Nenhum chamado aberto no período.");
 }
 
+function byRating(data) {
+  const items = [5, 4, 3, 2, 1].map((n) => ({ label: "★".repeat(n), value: data.satisfaction.distribution[n] ?? 0 }));
+  return bars("Notas de satisfação no período", items, "Nenhuma avaliação no período.");
+}
+
 function byAssignee(data) {
   const rows = data.by_assignee.map((a) =>
     el(
@@ -162,9 +177,10 @@ function byAssignee(data) {
       el("td", { "data-label": "Em andamento" }, String(a.in_progress)),
       el("td", { "data-label": "Resolvidos no período" }, String(a.resolved)),
       el("td", { "data-label": "Tempo médio" }, formatHours(a.avg_resolution_hours)),
+      el("td", { "data-label": "Satisfação", title: `${a.ratings} avaliações` }, formatRating(a.avg_rating)),
     ),
   );
-  const headers = ["Técnico", "Abertos", "Em andamento", "Resolvidos no período", "Tempo médio"];
+  const headers = ["Técnico", "Abertos", "Em andamento", "Resolvidos no período", "Tempo médio", "Satisfação"];
   return card(
     "Por técnico",
     el(
@@ -219,7 +235,7 @@ function render(data) {
     ),
     periodCards(data),
     timeline(data),
-    el("div", { class: "chart-grid" }, byPriority(data), byCategory(data)),
+    el("div", { class: "chart-grid" }, byPriority(data), byCategory(data), byRating(data)),
     data.scope === "TODOS" && byAssignee(data),
   );
 }
