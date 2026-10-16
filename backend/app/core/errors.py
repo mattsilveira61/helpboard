@@ -33,3 +33,13 @@ class ConflictError(AppError):
     """A ação viola uma regra de negócio (e-mail repetido, transição de status inválida...)."""
 
     status_code = 409
+
+
+class TooManyRequestsError(AppError):
+    """Tentativas demais em pouco tempo; retry_after diz quantos segundos esperar."""
+
+    status_code = 429
+
+    def __init__(self, detail: str, retry_after: int):
+        super().__init__(detail)
+        self.retry_after = retry_after

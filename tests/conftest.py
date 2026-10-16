@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 from app.core.database import get_db
+from app.core.rate_limit import login_limiter
 from app.core.security import create_access_token, hash_password
 from app.main import app
 from app.models import Category, Role, TicketHistory, User
@@ -54,6 +55,7 @@ def db(db_engine: Engine) -> Generator[Session, None, None]:
 def client(db: Session) -> Generator[TestClient, None, None]:
     """Cliente HTTP da API usando a mesma sessão do teste (os dados criados no teste aparecem na API)."""
     app.dependency_overrides[get_db] = lambda: db
+    login_limiter.clear()
     with TestClient(app) as test_client:
         yield test_client
     app.dependency_overrides.clear()

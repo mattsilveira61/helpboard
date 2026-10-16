@@ -31,6 +31,7 @@ _ERROR_DESCRIPTIONS = {
     403: "Perfil sem permissão para a ação",
     404: "Não encontrado (ou fora do que o usuário pode ver)",
     409: "Regra de negócio violada",
+    429: "Tentativas demais; veja o header Retry-After",
 }
 
 

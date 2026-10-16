@@ -220,6 +220,8 @@ Ele pode ser executado mais de uma vez sem duplicar dados.
 1. `POST /auth/login` com `{"email": "...", "password": "..."}` devolve um `access_token` (JWT).
 2. Envie o token nas demais rotas no header `Authorization: Bearer <token>`.
    No Swagger, use o botão **Authorize** e cole o token.
+3. Depois de 5 senhas erradas em 1 minuto para o mesmo e-mail e IP, o login responde `429` com o header
+   `Retry-After`. O contador fica na memória da API (suficiente para uma instância; com várias, iria para um Redis).
 
 | Endpoint | Quem acessa | Descrição |
 |---|---|---|

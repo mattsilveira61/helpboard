@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 from app.core.database import get_db
-from app.core.errors import AppError, UnauthorizedError
+from app.core.errors import AppError, TooManyRequestsError, UnauthorizedError
 from app.routers import auth, categories, comments, dashboard, tickets, users
 
 settings = get_settings()
@@ -58,7 +58,11 @@ app.add_middleware(
 @app.exception_handler(AppError)
 def app_error_handler(request: Request, exc: AppError) -> JSONResponse:
     """Converte os erros de regra de negócio dos services em respostas HTTP."""
-    headers = {"WWW-Authenticate": "Bearer"} if isinstance(exc, UnauthorizedError) else None
+    headers = None
+    if isinstance(exc, UnauthorizedError):
+        headers = {"WWW-Authenticate": "Bearer"}
+    elif isinstance(exc, TooManyRequestsError):
+        headers = {"Retry-After": str(exc.retry_after)}
     return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail}, headers=headers)
 
 
