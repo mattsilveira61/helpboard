@@ -8,7 +8,6 @@ from sqlalchemy.orm import Session
 from app.models import Category, Comment, Role, Ticket, TicketHistory, User
 from conftest import assume, auth_header, change_status, create_user, history_actions, open_ticket
 
-
 # --- Criação (Regras 1, 2, 3 e 11) ---
 
 

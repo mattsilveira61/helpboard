@@ -5,7 +5,7 @@ ou a mudança e o histórico são salvos juntos, ou nada é salvo (Regra 8).
 """
 
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Literal
 
 from sqlalchemy import Select, case, func, or_, select
@@ -45,7 +45,7 @@ TRANSITIONS: dict[tuple[TicketStatus, TicketStatus], Transition] = {
 
 
 def _now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def _log(

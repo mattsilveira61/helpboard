@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import bcrypt
 import jwt
@@ -20,7 +20,7 @@ def verify_password(password: str, password_hash: str) -> bool:
 def create_access_token(user_id: int, expires_delta: timedelta | None = None) -> str:
     """Gera o JWT. Ele guarda só o id do usuário: perfil e status são lidos do banco a cada requisição."""
     settings = get_settings()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     expires_at = now + (expires_delta or timedelta(minutes=settings.access_token_expire_minutes))
     payload = {"sub": str(user_id), "iat": now, "exp": expires_at}
     return jwt.encode(payload, settings.secret_key, algorithm=ALGORITHM)

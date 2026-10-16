@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 import pytest
@@ -218,7 +218,7 @@ def test_numeros_por_tecnico(
     resolve(client, tecnico, feito["id"])
     client.put(f"/tickets/{do_admin['id']}/assignee", headers=auth_header(admin), json={"assigned_to_id": admin.id})
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     set_dates(db, feito["id"], now - timedelta(hours=5), resolved=now)
 
     rows = {r["id"]: r for r in dashboard(client, admin)["by_assignee"]}

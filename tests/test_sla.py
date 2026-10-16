@@ -1,11 +1,11 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
 from app.models import Priority, TicketStatus
 from app.services.sla import calculate_sla_deadline, is_overdue
 
-CREATED = datetime(2026, 1, 10, 9, 0, tzinfo=timezone.utc)
+CREATED = datetime(2026, 1, 10, 9, 0, tzinfo=UTC)
 
 
 @pytest.mark.parametrize(

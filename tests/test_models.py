@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 from sqlalchemy import inspect, text
@@ -19,7 +19,7 @@ def make_user(db: Session, email: str = "teste@helpboard.dev", role: Role = Role
 def make_ticket(db: Session, **overrides) -> Ticket:
     requester = overrides.pop("requester", None) or make_user(db)
     category = overrides.pop("category", None) or Category(name="Categoria de teste")
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     fields = dict(
         title="Computador não liga",
         description="Aperto o botão e nada acontece.",
@@ -64,7 +64,7 @@ def test_nome_de_categoria_e_unico(db: Session):
 @pytest.mark.parametrize("status", [TicketStatus.RESOLVIDO, TicketStatus.FECHADO])
 def test_resolvido_ou_fechado_exige_solucao(db: Session, status: TicketStatus):
     tecnico = make_user(db, email="tec@helpboard.dev", role=Role.TECNICO)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     with pytest.raises(IntegrityError, match="ck_tickets_solution_required"):
         make_ticket(db, status=status, assigned_to=tecnico, resolved_at=now, closed_at=now)
 
@@ -82,7 +82,7 @@ def test_fechado_exige_data_de_fechamento(db: Session):
             status=TicketStatus.FECHADO,
             assigned_to=tecnico,
             solution="Resolvido.",
-            resolved_at=datetime.now(timezone.utc),
+            resolved_at=datetime.now(UTC),
         )
 
 

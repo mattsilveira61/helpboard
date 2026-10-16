@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from app.models.enums import Priority, TicketStatus
 
@@ -21,4 +21,4 @@ def is_overdue(
     """Atrasado = passou do prazo e ainda não foi resolvido nem fechado."""
     if status in (TicketStatus.RESOLVIDO, TicketStatus.FECHADO):
         return False
-    return (now or datetime.now(timezone.utc)) > sla_deadline
+    return (now or datetime.now(UTC)) > sla_deadline

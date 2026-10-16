@@ -4,7 +4,7 @@ Quem pode ver o chamado pode ler e comentar (matriz da seção 5); a checagem de
 fica no `get_ticket` do service de chamados, chamado antes destas funções.
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
@@ -30,7 +30,7 @@ def add_comment(db: Session, ticket: Ticket, message: str, user: User) -> Commen
     if ticket.is_archived:
         raise ConflictError("Não é possível comentar em chamado arquivado.")
 
-    comment = Comment(ticket=ticket, user=user, message=message, created_at=datetime.now(timezone.utc))
+    comment = Comment(ticket=ticket, user=user, message=message, created_at=datetime.now(UTC))
     db.add(comment)
     db.commit()
     return comment

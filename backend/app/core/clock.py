@@ -1,13 +1,13 @@
 """Data e hora da aplicação. O banco guarda tudo em UTC; os "dias" seguem o fuso da empresa (setting TIMEZONE)."""
 
-from datetime import date, datetime, time, timezone
+from datetime import UTC, date, datetime, time
 from zoneinfo import ZoneInfo
 
 from app.core.config import get_settings
 
 
 def now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def company_tz() -> ZoneInfo:

@@ -1,0 +1,15 @@
+line-length = 120
+target-version = "py312"
+extend-exclude = ["backend/alembic/versions"]
+
+[lint]
+select = ["E", "F", "W", "I", "B", "UP"]
+# B008: Depends()/Query() em parâmetros é o padrão do FastAPI
+ignore = ["B008", "UP046"]  # UP046: Page usa Generic, o padrão documentado do Pydantic
+
+[lint.isort]
+known-first-party = ["app", "conftest"]
+
+[lint.per-file-ignores]
+# Asserções de teste ficam mais legíveis numa linha só
+"tests/*" = ["E501"]

@@ -1,5 +1,7 @@
 # HelpBoard
 
+[![tests](https://github.com/mattsilveira61/helpboard/actions/workflows/tests.yml/badge.svg)](https://github.com/mattsilveira61/helpboard/actions/workflows/tests.yml)
+
 Sistema de gestão de chamados e suporte com quadro Kanban — FastAPI, PostgreSQL e JavaScript puro.
 
 ![Quadro Kanban](docs/screenshots/quadro.png)

@@ -8,7 +8,7 @@ Uso (dentro de backend/):  python -m app.seed
 """
 
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -220,7 +220,7 @@ def run_seed(db: Session, demo_password: str) -> dict[str, int]:
     db.flush()
 
     if db.scalar(select(func.count()).select_from(Ticket)) == 0:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         db.add_all(_build_ticket(spec, users, categories, now) for spec in DEMO_TICKETS)
 
     db.commit()
